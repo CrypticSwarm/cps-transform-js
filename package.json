@@ -1,0 +1,10 @@
+{ "name": "scope-visualizer"
+, "description": "A program to help people learn JS by visualizing the scope chain"
+, "version": "0.1.1"
+, "authors": [ "Perrin Westrich <crypticswarm@gmail.com>" ]
+, "private": true
+, "repository": { "type": "git" }
+, "main": ""
+, "dependencies": { "esprima": "1.0.0-dev" }
+, "devDependencies": {}
+}
