@@ -14,15 +14,16 @@ function fnDecToFnExp(ast) {
   return ast
 }
 
-function varDecToExp(ast) {
+function varDecToExp(ast, noWrap) {
   return ast.declarations.map(function varDecToExp(node) {
-    return wrapExpression(transform(node,
+    var exp = transform(node,
       { id: '$id', init: '$val' },
       { type: 'AssignmentExpression'
       , operator: '='
       , left: '$id'
       , right: '$val'
-      }))
+      })
+    return noWrap ? exp : wrapExpression(exp)
   })
 }
 
@@ -61,6 +62,10 @@ function wrapFunctionExp(ast) {
   return wrapExpression({ type: 'FunctionExpression', id: null, params: [], body: wrapBlock(ast) })
 }
 
+function wrapSequenceExp(ast) {
+  return { type: 'SequenceExpression',  expressions: ast }
+}
+
 function hoist(fnBody) {
   var hoistNodes = []
     , funcs = []
@@ -86,7 +91,7 @@ function hoist(fnBody) {
         cont.parent.node.splice.apply(cont.parent.node, [cont.key, 1].concat(varDecToExp(cont.node)))
       }
       else {
-        var exps = varDecToExp(cont.node)
+        var exps = varDecToExp(cont.node, true)
         if (exps.length > 1) exps = wrapSequenceExp(exps)
         else exps = exps[0]
         cont.parent.node[cont.key] = exps
