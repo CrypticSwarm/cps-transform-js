@@ -5,6 +5,11 @@
 , "private": true
 , "repository": { "type": "git" }
 , "main": ""
-, "dependencies": { "esprima": "0.9.9" }
+, "dependencies": 
+  { "esprima": "0.9.9"
+  , "escodegen": "0.0.9"
+  , "js-matcher": "0.0.3"
+  , "instantiator": "0.0.1"
+  }
 , "devDependencies": {}
 }
