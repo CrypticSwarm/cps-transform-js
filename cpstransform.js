@@ -14,16 +14,15 @@ function fnDecToFnExp(ast) {
   return ast
 }
 
-function varDecToExp(ast, noWrap) {
+function varDecToExps(ast, noWrap) {
   return ast.declarations.map(function varDecToExp(node) {
-    var exp = transform(node,
+    return transform(node,
       { id: '$id', init: '$val' },
       { type: 'AssignmentExpression'
       , operator: '='
       , left: '$id'
       , right: '$val'
       })
-    return noWrap ? exp : wrapExpression(exp)
   })
 }
 
@@ -58,6 +57,10 @@ function isFunction(node) {
   return node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration'
 }
 
+function isScoped(node) {
+  return node.type === 'VariableDeclaration' || node.type === 'FunctionDeclaration'
+}
+
 function wrapFunctionExp(ast) {
   return wrapExpression({ type: 'FunctionExpression', id: null, params: [], body: wrapBlock(ast) })
 }
@@ -66,39 +69,56 @@ function wrapSequenceExp(ast) {
   return { type: 'SequenceExpression',  expressions: ast }
 }
 
-function hoist(fnBody) {
-  var hoistNodes = []
-    , funcs = []
-    , vars = []
-  scopedTraverse(fnBody, function hoistBody(node) {
-    if (node.type === 'FunctionDeclaration') {
-      hoistNodes.push(this)
-    }
-    if (node.type === 'VariableDeclaration') {
-      hoistNodes.push(this)
-    }
-    if (isFunction(node)) {
-      hoist(node.body)
-    }
+function collectScopedAndCallables(fnBody) {
+  var collected = { scoped: [], callables: [] }
+  scopedTraverse(fnBody, function collect(node) {
+    if (isFunction(node)) collected.callables.push(this)
+    if (isScoped(node)) collected.scoped.push(this)
   })
-  hoistNodes.reverse().forEach(function (cont) {
+  return collected
+}
+
+function replaces(exps, cont) {
+  if (Array.isArray(cont.parent.node)) {
+    exps = exps.map(wrapExpression)
+    cont.key = cont.parent.node.indexOf(cont.node)
+    var args = [cont.key, 1].concat(exps)
+    cont.parent.node.splice.apply(cont.parent.node, args)
+  }
+  else {
+    if (exps.length > 1) exps = wrapSequenceExp(exps)
+    else exps = exps[0]
+    cont.parent.node[cont.key] = exps
+  }
+}
+
+function remove(cont) {
+  if (Array.isArray(cont.parent.node)) {
+    cont.key = cont.parent.node.indexOf(cont.node)
+    cont.parent.node.splice(cont.key, 1)
+  }
+  else {
+    delete cont.parent.node[cont.key]
+  }
+}
+
+function hoist(fnBody) {
+  var funcs = []
+    , vars = []
+    , nodeCt = collectScopedAndCallables(fnBody)
+  nodeCt.scoped.forEach(function (cont) {
     if (cont.node.type === 'FunctionDeclaration') {
-      cont.parent.node.splice(cont.key, 1)
+      remove(cont)
       funcs.push(cont.node)
     }
     if (cont.node.type === 'VariableDeclaration') {
-      if (Array.isArray(cont.parent.node)) {
-        cont.parent.node.splice.apply(cont.parent.node, [cont.key, 1].concat(varDecToExp(cont.node)))
-      }
-      else {
-        var exps = varDecToExp(cont.node, true)
-        if (exps.length > 1) exps = wrapSequenceExp(exps)
-        else exps = exps[0]
-        cont.parent.node[cont.key] = exps
-      }
+      replaces(varDecToExps(cont.node), cont)
       vars.push(varClearInit(cont.node))
     }
   })
   fnBody.body = funcs.concat(vars, fnBody.body)
+  nodeCt.callables.forEach(function (cont) {
+    hoist(cont.node.body)
+  })
   return fnBody
 }
