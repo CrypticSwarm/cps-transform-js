@@ -22,6 +22,11 @@ function fnDecToFnExp(ast) {
   return ast
 }
 
+function fnDecToVar(ast) {
+  var fn = fnDecToFnExp(ast)
+  return wrapVariableDec(fn.id, fn)
+}
+
 function varDecToExps(ast, noWrap) {
   return ast.declarations.map(function varDecToExp(node) {
     return transform(node,
@@ -85,6 +90,14 @@ function wrapIdentifier(name) {
   return { type: 'Identifier',  name: name }
 }
 
+function wrapVariableDeclarator(id, init) {
+  return { type: 'VariableDeclarator', id: id, init: init }
+}
+
+function wrapVariableDec(id, init) {
+  return { type: 'VariableDeclaration', declarations: [wrapVariableDeclarator(id, init)], kind: 'var' }
+}
+
 function collect(fnBody, typeFn) {
   var collected = []
   scopedTraverse(fnBody, function collectNodes(node) {
@@ -127,20 +140,21 @@ function applyAllFuncs(fnBody, fn) {
 }
 
 function hoist(fnBody) {
-  var funcs = []
-    , vars = []
+  var vars = []
     , scoped = collect(fnBody, isScoped)
-  scoped.forEach(function (cont) {
+  scoped.forEach(function removeDelcarations(cont) {
     if (cont.node.type === 'FunctionDeclaration') {
       remove(cont)
-      funcs.push(cont.node)
+      vars.push(fnDecToVar(cont.node))
     }
     if (cont.node.type === 'VariableDeclaration') {
       replaces(varDecToExps(cont.node), cont)
       vars.push(varClearInit(cont.node))
     }
   })
-  fnBody.body = funcs.concat(vars, fnBody.body)
+  if (vars.length) {
+    fnBody.body.unshift(joinVars(vars))
+  }
   return fnBody
 }
 
