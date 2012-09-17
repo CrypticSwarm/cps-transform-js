@@ -41,6 +41,14 @@ function varClearInit(ast) {
   return ast
 }
 
+function joinVars(varList) {
+  if (varList.length < 1) return varList
+  varList[0].declarations = varList.reduce(function appendVar(acc, node) {
+    return acc.concat(node.declarations)
+  }, [])
+  return varList[0]
+}
+
 function scopedTraverse(fnBody, fn) {
   return traverse(fnBody).forEach(function scopedTraversal(node) {
     if (node.type) fn.call(this, node)
