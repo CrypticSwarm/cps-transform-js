@@ -73,11 +73,10 @@ function wrapSequenceExp(ast) {
   return { type: 'SequenceExpression',  expressions: ast }
 }
 
-function collectScopedAndCallables(fnBody) {
-  var collected = { scoped: [], callables: [] }
-  scopedTraverse(fnBody, function collect(node) {
-    if (isFunction(node)) collected.callables.push(this)
-    if (isScoped(node)) collected.scoped.push(this)
+function collect(fnBody, typeFn) {
+  var collected = []
+  scopedTraverse(fnBody, function collectNodes(node) {
+    if (typeFn(node)) collected.push(this)
   })
   return collected
 }
@@ -106,11 +105,20 @@ function remove(cont) {
   }
 }
 
+function applyAllFuncs(fnBody, fn) {
+  var funcs = collect(fnBody, isFunction)
+  fn(fnBody)
+  funcs.forEach(function (tCont) {
+    applyAllFuncs(tCont.node.body, fn)
+  })
+  return fnBody
+}
+
 function hoist(fnBody) {
   var funcs = []
     , vars = []
-    , nodeCt = collectScopedAndCallables(fnBody)
-  nodeCt.scoped.forEach(function (cont) {
+    , scoped = collect(fnBody, isScoped)
+  scoped.forEach(function (cont) {
     if (cont.node.type === 'FunctionDeclaration') {
       remove(cont)
       funcs.push(cont.node)
@@ -121,8 +129,9 @@ function hoist(fnBody) {
     }
   })
   fnBody.body = funcs.concat(vars, fnBody.body)
-  nodeCt.callables.forEach(function (cont) {
-    hoist(cont.node.body)
-  })
   return fnBody
+}
+
+function hoistAll(fnBody) {
+  return applyAllFuncs(fnBody, hoist)
 }
