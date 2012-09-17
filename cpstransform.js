@@ -166,16 +166,37 @@ function convertContinuation(ast) {
   return wrapExpression(wrapCallExp(wrapIdentifier('continuation'), [wrapFunctionExp(ast)]))
 }
 
-function convertToCPS(fnBody) {
-  fnBody = hoistAll(fnBody)
+function isBlock(node) {
+  return node.type === 'Program' || node.type === 'BlockStatement'
+}
+
+function dispatchCPSTransform(fnBody) {
+  if (isBlock(fnBody)) return convertCPSBlock(fnBody)
+  if (isFunction(fnBody)) return convertCPSBlock(fnBody.body)
+  if (fnBody.type === 'VariableDeclaration') return convertCPSVarDec(fnBody)
+  return fnBody
+}
+
+function convertCPSVarDec(fnBody) {
+  fnBody.declarations.forEach(function (varDec) {
+    if (varDec.init) dispatchCPSTransform(varDec.init)
+  })
+  return fnBody
+}
+
+function convertCPSBlock(fnBody) {
   var body = fnBody.body
   if (body.length) {
-    body[body.length-1] = convertContinuation(body[body.length-1])
-    body = body.reverse().reduce(function (a, b) {
-      return convertContinuation([b, a])
+    body[body.length-1] = convertContinuation(dispatchCPSTransform(body[body.length-1]))
+    body = body.reduceRight(function (a, b) {
+      return convertContinuation([dispatchCPSTransform(b), a])
     })
     fnBody.body = [body]
   }
   return fnBody
+}
+
+function convertToCPS(fnBody) {
+  return dispatchCPSTransform(hoistAll(fnBody))
 }
 
