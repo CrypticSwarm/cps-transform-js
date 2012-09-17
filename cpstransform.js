@@ -81,6 +81,10 @@ function wrapSequenceExp(ast) {
   return { type: 'SequenceExpression',  expressions: ast }
 }
 
+function wrapIdentifier(name) {
+  return { type: 'Identifier',  name: name }
+}
+
 function collect(fnBody, typeFn) {
   var collected = []
   scopedTraverse(fnBody, function collectNodes(node) {
