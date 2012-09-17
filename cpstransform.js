@@ -62,7 +62,11 @@ function isScoped(node) {
 }
 
 function wrapFunctionExp(ast) {
-  return wrapExpression({ type: 'FunctionExpression', id: null, params: [], body: wrapBlock(ast) })
+  return { type: 'FunctionExpression', id: null, params: [], body: wrapBlock(ast) }
+}
+
+function wrapCallExp(ast, args) {
+  return { type: 'CallExpression', callee: ast, arguments: args || [] }
 }
 
 function wrapSequenceExp(ast) {
