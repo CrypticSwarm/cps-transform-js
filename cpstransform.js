@@ -5,6 +5,14 @@ var instantiator = require('instantiator')
 var matcher = require('js-matcher').match
 var traverse = require('traverse')
 
+function isFunction(node) {
+  return node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration'
+}
+
+function isScoped(node) {
+  return node.type === 'VariableDeclaration' || node.type === 'FunctionDeclaration'
+}
+
 function transform(node, match, instan) {
   return instantiator(instan, matcher(match, node))
 }
@@ -52,14 +60,6 @@ function bodyBlockType(type) {
 }
 var wrapProgram = bodyBlockType('Program')
 var wrapBlock = bodyBlockType('BlockStatement')
-
-function isFunction(node) {
-  return node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration'
-}
-
-function isScoped(node) {
-  return node.type === 'VariableDeclaration' || node.type === 'FunctionDeclaration'
-}
 
 function wrapFunctionExp(ast) {
   return { type: 'FunctionExpression', id: null, params: [], body: wrapBlock(ast) }
