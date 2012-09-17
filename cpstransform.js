@@ -161,3 +161,21 @@ function hoist(fnBody) {
 function hoistAll(fnBody) {
   return applyAllFuncs(fnBody, hoist)
 }
+
+function convertContinuation(ast) {
+  return wrapExpression(wrapCallExp(wrapIdentifier('continuation'), [wrapFunctionExp(ast)]))
+}
+
+function convertToCPS(fnBody) {
+  fnBody = hoistAll(fnBody)
+  var body = fnBody.body
+  if (body.length) {
+    body[body.length-1] = convertContinuation(body[body.length-1])
+    body = body.reverse().reduce(function (a, b) {
+      return convertContinuation([b, a])
+    })
+    fnBody.body = [body]
+  }
+  return fnBody
+}
+
