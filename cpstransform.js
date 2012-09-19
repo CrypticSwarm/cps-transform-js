@@ -5,12 +5,23 @@ var instantiator = require('instantiator')
 var matcher = require('js-matcher').match
 var traverse = require('traverse')
 
+
+// Predicates
+
 function isFunction(node) {
   return node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration'
 }
 
 function isScoped(node) {
   return node.type === 'VariableDeclaration' || node.type === 'FunctionDeclaration'
+}
+
+function isBlock(node) {
+  return node.type === 'Program' || node.type === 'BlockStatement'
+}
+
+function isSimple(node) {
+  return node.type === 'Literal' || node.type === 'Identifier'
 }
 
 function transform(node, match, instan) {
@@ -168,14 +179,6 @@ function convertContinuation(ast) {
 
 function convertExpContinuation(ast, val, name) {
   return wrapCallExp(wrapIdentifier('continuation'), [val, wrapFunctionExp(wrapExpression(ast), [name])])
-}
-
-function isBlock(node) {
-  return node.type === 'Program' || node.type === 'BlockStatement'
-}
-
-function isSimple(node) {
-  return node.type === 'Literal' || node.type === 'Identifier'
 }
 
 function dispatchCPSTransform(fnBody) {
