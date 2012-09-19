@@ -166,6 +166,10 @@ function convertContinuation(ast) {
   return wrapExpression(wrapCallExp(wrapIdentifier('continuation'), [wrapFunctionExp(ast)]))
 }
 
+function convertExpContinuation(ast, val, name) {
+  return wrapCallExp(wrapIdentifier('continuation'), [val, wrapFunctionExp(wrapExpression(ast), [name])])
+}
+
 function isBlock(node) {
   return node.type === 'Program' || node.type === 'BlockStatement'
 }
@@ -178,7 +182,26 @@ function dispatchCPSTransform(fnBody) {
   if (isBlock(fnBody)) return convertCPSBlock(fnBody)
   if (isFunction(fnBody)) return convertCPSBlock(fnBody.body)
   if (fnBody.type === 'VariableDeclaration') return convertCPSVarDec(fnBody)
+  if (fnBody.type === 'ExpressionStatement') return convertCPSExp(fnBody)
+  if (fnBody.type === 'BinaryExpression') return convertCPSBinary(fnBody)
   return fnBody
+}
+
+function convertCPSExp(fnBody) {
+  return wrapExpression(dispatchCPSTransform(fnBody.expression))
+}
+
+function convertCPSBinary(fnBody) {
+  var contin = fnBody
+  if (!isSimple(fnBody.right)) {
+    contin = convertExpContinuation(contin, dispatchCPSTransform(fnBody.right), wrapIdentifier('__val2'))
+    fnBody.right = wrapIdentifier('__val2')
+  }
+  if (!isSimple(fnBody.left)) {
+    contin = convertExpContinuation(contin, dispatchCPSTransform(fnBody.left), wrapIdentifier('__val1'))
+    fnBody.left = wrapIdentifier('__val1')
+  }
+  return contin
 }
 
 function convertCPSVarDec(fnBody) {
