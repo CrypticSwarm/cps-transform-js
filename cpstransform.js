@@ -170,6 +170,10 @@ function isBlock(node) {
   return node.type === 'Program' || node.type === 'BlockStatement'
 }
 
+function isSimple(node) {
+  return node.type === 'Literal' || node.type === 'Identifier'
+}
+
 function dispatchCPSTransform(fnBody) {
   if (isBlock(fnBody)) return convertCPSBlock(fnBody)
   if (isFunction(fnBody)) return convertCPSBlock(fnBody.body)
