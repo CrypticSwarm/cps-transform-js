@@ -187,13 +187,21 @@ function dispatchCPSTransform(fnBody) {
   if (isFunction(fnBody)) return convertCPSBlock(fnBody.body)
   if (fnBody.type === 'VariableDeclaration') return convertCPSVarDec(fnBody)
   if (fnBody.type === 'ExpressionStatement') return convertCPSExp(fnBody)
-  if (fnBody.type === 'BinaryExpression') return convertCPSBinary(fnBody)
+  if (fnBody.type === 'ReturnStatement') return convertCPSReturn(fnBody)
   return fnBody
 }
 
 function dispatchCPSExp(fnBody, wrap) {
   if (fnBody.type === 'BinaryExpression') return convertCPSBinary(fnBody, wrap)
   return fnBody
+}
+
+function wrapReturn(val) {
+  return wrapExpression(wrapCallExp(wrapIdentifier('__return'), [val]))
+}
+
+function convertCPSReturn(fnBody) {
+  return wrapExpression(dispatchCPSExp(fnBody.argument, wrapReturn))
 }
 
 function convertCPSExp(fnBody) {
