@@ -220,15 +220,25 @@ function wrapExpressionContinuation(identifier, ast) {
   }
 }
 
+var gensym = (function () {
+  var id = 0;
+  return function gensym() {
+    id++
+    return wrapIdentifier('__val' + id)
+  }
+})()
+
 function convertCPSBinary(fnBody, wrap) {
   var contin = wrap(fnBody)
   if (!isSimple(fnBody.right)) {
-    contin = dispatchCPSExp(fnBody.right, wrapExpressionContinuation(wrapIdentifier('__val2'), contin))
-    fnBody.right = wrapIdentifier('__val2')
+    var val2 = gensym()
+    contin = dispatchCPSExp(fnBody.right, wrapExpressionContinuation(val2, contin))
+    fnBody.right = val2
   }
   if (!isSimple(fnBody.left)) {
-    contin = dispatchCPSExp(fnBody.left, wrapExpressionContinuation(wrapIdentifier('__val1'), contin))
-    fnBody.left = wrapIdentifier('__val1')
+    var val1 = gensym()
+    contin = dispatchCPSExp(fnBody.left, wrapExpressionContinuation(val1, contin))
+    fnBody.left = val1
   }
   return contin
 }
