@@ -73,6 +73,7 @@ function scopedTraverse(fnBody, fn) {
 }
 
 function wrapExpression(ast) {
+  if (ast.type === 'ExpressionStatement') return ast
   return { type: 'ExpressionStatement', expression: ast }
 }
 
@@ -190,18 +191,29 @@ function dispatchCPSTransform(fnBody) {
   return fnBody
 }
 
-function convertCPSExp(fnBody) {
-  return wrapExpression(dispatchCPSTransform(fnBody.expression))
+function dispatchCPSExp(fnBody, wrap) {
+  if (fnBody.type === 'BinaryExpression') return convertCPSBinary(fnBody, wrap)
+  return fnBody
 }
 
-function convertCPSBinary(fnBody) {
-  var contin = fnBody
+function convertCPSExp(fnBody) {
+  return wrapExpression(dispatchCPSExp(fnBody.expression, wrapExpression))
+}
+
+function wrapExpressionContinuation(identifier, ast) {
+  return function wrapExpContin(val) {
+    return wrapCallExp(wrapIdentifier('continuation'), [val, wrapFunctionExp(wrapExpression(ast), [identifier])])
+  }
+}
+
+function convertCPSBinary(fnBody, wrap) {
+  var contin = wrap(fnBody)
   if (!isSimple(fnBody.right)) {
-    contin = convertExpContinuation(contin, dispatchCPSTransform(fnBody.right), wrapIdentifier('__val2'))
+    contin = dispatchCPSExp(fnBody.right, wrapExpressionContinuation(wrapIdentifier('__val2'), contin))
     fnBody.right = wrapIdentifier('__val2')
   }
   if (!isSimple(fnBody.left)) {
-    contin = convertExpContinuation(contin, dispatchCPSTransform(fnBody.left), wrapIdentifier('__val1'))
+    contin = dispatchCPSExp(fnBody.left, wrapExpressionContinuation(wrapIdentifier('__val1'), contin))
     fnBody.left = wrapIdentifier('__val1')
   }
   return contin
