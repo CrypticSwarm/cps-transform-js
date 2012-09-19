@@ -87,7 +87,7 @@ var wrapProgram = bodyBlockType('Program')
 var wrapBlock = bodyBlockType('BlockStatement')
 
 function wrapFunctionExp(ast, params) {
-  return { type: 'FunctionExpression', id: null, params: params || [], body: wrapBlock(ast) }
+  return { type: 'FunctionExpression', id: null, params: params || [], body: ast }
 }
 
 function wrapCallExp(ast, args) {
@@ -175,16 +175,16 @@ function hoistAll(fnBody) {
 }
 
 function convertContinuation(ast) {
-  return wrapExpression(wrapCallExp(wrapIdentifier('continuation'), [wrapFunctionExp(ast)]))
+  return wrapExpression(wrapCallExp(wrapIdentifier('continuation'), [wrapFunctionExp(wrapBlock(ast))]))
 }
 
 function convertExpContinuation(ast, val, name) {
-  return wrapCallExp(wrapIdentifier('continuation'), [val, wrapFunctionExp(wrapExpression(ast), [name])])
+  return wrapCallExp(wrapIdentifier('continuation'), [val, wrapFunctionExp(wrapBlock(wrapExpression(ast)), [name])])
 }
 
 function dispatchCPSTransform(fnBody) {
   if (isBlock(fnBody)) return convertCPSBlock(fnBody)
-  if (isFunction(fnBody)) return convertCPSBlock(fnBody.body)
+  if (isFunction(fnBody)) return convertCPSFunc(fnBody)
   if (fnBody.type === 'VariableDeclaration') return convertCPSVarDec(fnBody)
   if (fnBody.type === 'ExpressionStatement') return convertCPSExp(fnBody)
   if (fnBody.type === 'ReturnStatement') return convertCPSReturn(fnBody)
@@ -193,6 +193,7 @@ function dispatchCPSTransform(fnBody) {
 
 function dispatchCPSExp(fnBody, wrap) {
   if (fnBody.type === 'BinaryExpression') return convertCPSBinary(fnBody, wrap)
+  if (fnBody.type === 'CallExpression') return convertCPSCall(fnBody, wrap)
   return fnBody
 }
 
@@ -208,9 +209,15 @@ function convertCPSExp(fnBody) {
   return wrapExpression(dispatchCPSExp(fnBody.expression, wrapExpression))
 }
 
+function convertCPSCall(callExp, wrap) {
+  callExp.callee = dispatchCPSTransform(callExp.callee)
+  //callExp.arguments = callExp.arguments.
+  return callExp
+}
+
 function wrapExpressionContinuation(identifier, ast) {
   return function wrapExpContin(val) {
-    return wrapCallExp(wrapIdentifier('continuation'), [val, wrapFunctionExp(wrapExpression(ast), [identifier])])
+    return wrapCallExp(wrapIdentifier('continuation'), [val, wrapFunctionExp(wrapBlock(wrapExpression(ast)), [identifier])])
   }
 }
 
@@ -232,6 +239,10 @@ function convertCPSVarDec(fnBody) {
     if (varDec.init) dispatchCPSTransform(varDec.init)
   })
   return fnBody
+}
+
+function convertCPSFunc(fnBody) {
+  return wrapFunctionExp(dispatchCPSTransform(fnBody.body))
 }
 
 function convertCPSBlock(fnBody) {
