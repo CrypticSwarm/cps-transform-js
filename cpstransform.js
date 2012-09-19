@@ -74,8 +74,8 @@ function bodyBlockType(type) {
 var wrapProgram = bodyBlockType('Program')
 var wrapBlock = bodyBlockType('BlockStatement')
 
-function wrapFunctionExp(ast) {
-  return { type: 'FunctionExpression', id: null, params: [], body: wrapBlock(ast) }
+function wrapFunctionExp(ast, params) {
+  return { type: 'FunctionExpression', id: null, params: params || [], body: wrapBlock(ast) }
 }
 
 function wrapCallExp(ast, args) {
