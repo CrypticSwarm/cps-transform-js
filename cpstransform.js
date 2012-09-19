@@ -1,4 +1,3 @@
-var fs = require('fs')
 var esprima = require('esprima').parse
 var escodegen = require('escodegen').generate
 var instantiator = require('instantiator')
