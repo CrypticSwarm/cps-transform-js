@@ -4,24 +4,7 @@ var instantiator = require('instantiator')
 var matcher = require('js-matcher').match
 var traverse = require('traverse')
 var wrap = require('./wrap')
-
-// Predicates
-
-function isFunction(node) {
-  return node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration'
-}
-
-function isScoped(node) {
-  return node.type === 'VariableDeclaration' || node.type === 'FunctionDeclaration'
-}
-
-function isBlock(node) {
-  return node.type === 'Program' || node.type === 'BlockStatement'
-}
-
-function isSimple(node) {
-  return node.type === 'Literal' || node.type === 'Identifier'
-}
+var pred = require('./predicates')
 
 function transform(node, match, instan) {
   return instantiator(instan, matcher(match, node))
@@ -67,7 +50,7 @@ function joinVars(varList) {
 function scopedTraverse(fnBody, fn) {
   return traverse(fnBody).forEach(function scopedTraversal(node) {
     if (node.type) fn.call(this, node)
-    if (isFunction(this.node)) this.block()
+    if (pred.isFunction(this.node)) this.block()
   })
 }
 
@@ -105,7 +88,7 @@ function remove(cont) {
 }
 
 function applyAllFuncs(fnBody, fn) {
-  var funcs = collect(fnBody, isFunction)
+  var funcs = collect(fnBody, pred.isFunction)
   fn(fnBody)
   funcs.forEach(function (tCont) {
     applyAllFuncs(tCont.node.body, fn)
@@ -115,7 +98,7 @@ function applyAllFuncs(fnBody, fn) {
 
 function hoist(fnBody) {
   var vars = []
-    , scoped = collect(fnBody, isScoped)
+    , scoped = collect(fnBody, pred.isScoped)
   scoped.forEach(function removeDelcarations(cont) {
     if (cont.node.type === 'FunctionDeclaration') {
       remove(cont)
@@ -145,8 +128,8 @@ function convertExpContinuation(ast, val, name) {
 }
 
 function dispatchCPSTransform(fnBody) {
-  if (isBlock(fnBody)) return convertCPSBlock(fnBody)
-  if (isFunction(fnBody)) return convertCPSFunc(fnBody)
+  if (pred.isBlock(fnBody)) return convertCPSBlock(fnBody)
+  if (pred.isFunction(fnBody)) return convertCPSFunc(fnBody)
   if (fnBody.type === 'VariableDeclaration') return convertCPSVarDec(fnBody)
   if (fnBody.type === 'ExpressionStatement') return convertCPSExp(fnBody)
   if (fnBody.type === 'ReturnStatement') return convertCPSReturn(fnBody)
@@ -193,12 +176,12 @@ var gensym = (function () {
 
 function convertCPSBinary(fnBody, wrap) {
   var contin = wrap(fnBody)
-  if (!isSimple(fnBody.right)) {
+  if (!pred.isSimple(fnBody.right)) {
     var val2 = gensym()
     contin = dispatchCPSExp(fnBody.right, wrapExpressionContinuation(val2, contin))
     fnBody.right = val2
   }
-  if (!isSimple(fnBody.left)) {
+  if (!pred.isSimple(fnBody.left)) {
     var val1 = gensym()
     contin = dispatchCPSExp(fnBody.left, wrapExpressionContinuation(val1, contin))
     fnBody.left = val1
