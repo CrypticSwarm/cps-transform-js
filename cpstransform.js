@@ -3,7 +3,7 @@ var escodegen = require('escodegen').generate
 var instantiator = require('instantiator')
 var matcher = require('js-matcher').match
 var traverse = require('traverse')
-
+var wrap = require('./wrap')
 
 // Predicates
 
@@ -34,7 +34,7 @@ function fnDecToFnExp(ast) {
 
 function fnDecToVar(ast) {
   var fn = fnDecToFnExp(ast)
-  return wrapVariableDec(fn.id, fn)
+  return wrap.VariableDeclaration(fn.id, fn)
 }
 
 function varDecToExps(ast, noWrap) {
@@ -71,43 +71,6 @@ function scopedTraverse(fnBody, fn) {
   })
 }
 
-function wrapExpression(ast) {
-  if (ast.type === 'ExpressionStatement') return ast
-  return { type: 'ExpressionStatement', expression: ast }
-}
-
-function bodyBlockType(type) {
-  return function wrapBody(ast) {
-    if (arguments.length > 1) ast = Array.prototype.slice.call(arguments)
-    return { type: type, body: Array.isArray(ast) ? ast : [ast] }
-  }
-}
-var wrapProgram = bodyBlockType('Program')
-var wrapBlock = bodyBlockType('BlockStatement')
-
-function wrapFunctionExp(ast, params) {
-  return { type: 'FunctionExpression', id: null, params: params || [], body: ast }
-}
-
-function wrapCallExp(ast, args) {
-  return { type: 'CallExpression', callee: ast, arguments: args || [] }
-}
-
-function wrapSequenceExp(ast) {
-  return { type: 'SequenceExpression',  expressions: ast }
-}
-
-function wrapIdentifier(name) {
-  return { type: 'Identifier',  name: name }
-}
-
-function wrapVariableDeclarator(id, init) {
-  return { type: 'VariableDeclarator', id: id, init: init }
-}
-
-function wrapVariableDec(id, init) {
-  return { type: 'VariableDeclaration', declarations: [wrapVariableDeclarator(id, init)], kind: 'var' }
-}
 
 function collect(fnBody, typeFn) {
   var collected = []
@@ -119,13 +82,13 @@ function collect(fnBody, typeFn) {
 
 function replaces(exps, cont) {
   if (Array.isArray(cont.parent.node)) {
-    exps = exps.map(wrapExpression)
+    exps = exps.map(wrap.ExpressionStatement)
     cont.key = cont.parent.node.indexOf(cont.node)
     var args = [cont.key, 1].concat(exps)
     cont.parent.node.splice.apply(cont.parent.node, args)
   }
   else {
-    if (exps.length > 1) exps = wrapSequenceExp(exps)
+    if (exps.length > 1) exps = wrap.SequenceExpression(exps)
     else exps = exps[0]
     cont.parent.node[cont.key] = exps
   }
@@ -174,11 +137,11 @@ function hoistAll(fnBody) {
 }
 
 function convertContinuation(ast) {
-  return wrapExpression(wrapCallExp(wrapIdentifier('continuation'), [wrapFunctionExp(wrapBlock(ast))]))
+  return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__continuation'), [wrap.FunctionExpression(wrap.BlockStatement(ast))]))
 }
 
 function convertExpContinuation(ast, val, name) {
-  return wrapCallExp(wrapIdentifier('continuation'), [val, wrapFunctionExp(wrapBlock(wrapExpression(ast)), [name])])
+  return wrap.CallExpression(wrap.Identifier('__continuation'), [val, wrap.FunctionExpression(wrapBlockStatement(wrap.ExpressionStatement(ast)), [name])])
 }
 
 function dispatchCPSTransform(fnBody) {
@@ -197,15 +160,15 @@ function dispatchCPSExp(fnBody, wrap) {
 }
 
 function wrapReturn(val) {
-  return wrapExpression(wrapCallExp(wrapIdentifier('__return'), [val]))
+  return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), [val]))
 }
 
 function convertCPSReturn(fnBody) {
-  return wrapExpression(dispatchCPSExp(fnBody.argument, wrapReturn))
+  return wrap.ExpressionStatement(dispatchCPSExp(fnBody.argument, wrapReturn))
 }
 
 function convertCPSExp(fnBody) {
-  return wrapExpression(dispatchCPSExp(fnBody.expression, wrapExpression))
+  return wrap.ExpressionStatement(dispatchCPSExp(fnBody.expression, wrap.ExpressionStatement))
 }
 
 function convertCPSCall(callExp, wrap) {
@@ -216,7 +179,7 @@ function convertCPSCall(callExp, wrap) {
 
 function wrapExpressionContinuation(identifier, ast) {
   return function wrapExpContin(val) {
-    return wrapCallExp(wrapIdentifier('continuation'), [val, wrapFunctionExp(wrapBlock(wrapExpression(ast)), [identifier])])
+    return wrap.CallExpression(wrap.Identifier('__continuation'), [val, wrap.FunctionExpression(wrap.BlockStatement(wrap.ExpressionStatement(ast)), [identifier])])
   }
 }
 
@@ -224,7 +187,7 @@ var gensym = (function () {
   var id = 0;
   return function gensym() {
     id++
-    return wrapIdentifier('__val' + id)
+    return wrap.Identifier('__val' + id)
   }
 })()
 
@@ -251,7 +214,7 @@ function convertCPSVarDec(fnBody) {
 }
 
 function convertCPSFunc(fnBody) {
-  return wrapFunctionExp(dispatchCPSTransform(fnBody.body))
+  return wrap.FunctionExpression(dispatchCPSTransform(fnBody.body))
 }
 
 function convertCPSBlock(fnBody) {
