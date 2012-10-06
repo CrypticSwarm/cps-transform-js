@@ -12,23 +12,23 @@ function dispatch(node, wrap) {
   return node
 }
 
-function convertCPSBlock(fnBody) {
-  var body = fnBody.body
+function convertCPSBlock(block, wrap) {
+  var body = block.body
   if (body.length) {
     body[body.length-1] = convertContinuation(dispatch(body[body.length-1]))
     body = body.reduceRight(function (a, b) {
       return convertContinuation([dispatch(b), a])
     })
-    fnBody.body = [body]
+    block.body = [body]
   }
-  return fnBody
+  return block
 }
 
-function convertCPSVarDec(fnBody) {
-  fnBody.declarations.forEach(function (varDec) {
+function convertCPSVarDec(varDec) {
+  varDec.declarations.forEach(function (varDec) {
     if (varDec.init) dispatch(varDec.init)
   })
-  return fnBody
+  return varDec
 }
 
 
@@ -41,8 +41,8 @@ function convertExpContinuation(ast, val, name) {
 }
 
 
-function convertCPSExp(fnBody) {
-  return wrap.ExpressionStatement(dispatch(fnBody.expression, wrap.ExpressionStatement))
+function convertCPSExp(exp) {
+  return wrap.ExpressionStatement(dispatch(exp.expression, wrap.ExpressionStatement))
 }
 
 var gensym = (function () {
@@ -53,17 +53,17 @@ var gensym = (function () {
   }
 })()
 
-function transformBinaryExpression(fnBody, wrap) {
-  var contin = wrap(fnBody)
-  if (!pred.isSimple(fnBody.right)) {
+function transformBinaryExpression(binexp, wrap) {
+  var contin = wrap(binexp)
+  if (!pred.isSimple(binexp.right)) {
     var val2 = gensym()
-    contin = dispatch(fnBody.right, wrapExpressionContinuation(val2, contin))
-    fnBody.right = val2
+    contin = dispatch(binexp.right, wrapExpressionContinuation(val2, contin))
+    binexp.right = val2
   }
-  if (!pred.isSimple(fnBody.left)) {
+  if (!pred.isSimple(binexp.left)) {
     var val1 = gensym()
-    contin = dispatch(fnBody.left, wrapExpressionContinuation(val1, contin))
-    fnBody.left = val1
+    contin = dispatch(binexp.left, wrapExpressionContinuation(val1, contin))
+    binexp.left = val1
   }
   return contin
 }
@@ -86,15 +86,15 @@ function transformSimple(simp, wrap) {
   return wrap(simp)
 }
 
-function transformReturnStatement(fnBody) {
-  return wrap.ExpressionStatement(dispatch(fnBody.argument, wrapReturn))
+function transformReturnStatement(retSt) {
+  return wrap.ExpressionStatement(dispatch(retSt.argument, wrapReturn))
 }
 function wrapReturn(val) {
   return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), [val]))
 }
 
-function convertCPSFunc(fnBody) {
-  return wrap.FunctionExpression(dispatch(fnBody.body))
+function convertCPSFunc(func) {
+  return wrap.FunctionExpression(dispatch(func.body))
 }
 
 transform = { Identifier: transformSimple
