@@ -36,6 +36,10 @@ function VariableDeclaration(id, init) {
   return { type: 'VariableDeclaration', declarations: [wrapVariableDeclarator(id, init)], kind: 'var' }
 }
 
+function AssignmentExpression(left, right, op) {
+  return { type: 'AssignmentExpression', operator: op, left: left, right: right }
+}
+
 module.exports = { ExpressionStatement: ExpressionStatement
                  , Program: Program
                  , BlockStatement: BlockStatement
@@ -45,5 +49,6 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , Identifier: Identifier
                  , VariableDeclarator: VariableDeclarator
                  , VariableDeclaration: VariableDeclaration
+                 , AssignmentExpression: AssignmentExpression
                  }
 
