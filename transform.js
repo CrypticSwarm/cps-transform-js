@@ -2,7 +2,7 @@ var pred = require('./predicates')
 var wrap = require('./wrap')
 var transform
 
-function dispatchCPSTransform(node, wrap) {
+function dispatch(node, wrap) {
   if (pred.isBlock(node)) return convertCPSBlock(node)
   if (pred.isFunction(node)) return convertCPSFunc(node)
   if (node.type === 'VariableDeclaration') return convertCPSVarDec(node)
@@ -15,9 +15,9 @@ function dispatchCPSTransform(node, wrap) {
 function convertCPSBlock(fnBody) {
   var body = fnBody.body
   if (body.length) {
-    body[body.length-1] = convertContinuation(dispatchCPSTransform(body[body.length-1]))
+    body[body.length-1] = convertContinuation(dispatch(body[body.length-1]))
     body = body.reduceRight(function (a, b) {
-      return convertContinuation([dispatchCPSTransform(b), a])
+      return convertContinuation([dispatch(b), a])
     })
     fnBody.body = [body]
   }
@@ -26,7 +26,7 @@ function convertCPSBlock(fnBody) {
 
 function convertCPSVarDec(fnBody) {
   fnBody.declarations.forEach(function (varDec) {
-    if (varDec.init) dispatchCPSTransform(varDec.init)
+    if (varDec.init) dispatch(varDec.init)
   })
   return fnBody
 }
@@ -42,7 +42,7 @@ function convertExpContinuation(ast, val, name) {
 
 
 function convertCPSExp(fnBody) {
-  return wrap.ExpressionStatement(dispatchCPSTransform(fnBody.expression, wrap.ExpressionStatement))
+  return wrap.ExpressionStatement(dispatch(fnBody.expression, wrap.ExpressionStatement))
 }
 
 var gensym = (function () {
@@ -57,12 +57,12 @@ function transformBinaryExpression(fnBody, wrap) {
   var contin = wrap(fnBody)
   if (!pred.isSimple(fnBody.right)) {
     var val2 = gensym()
-    contin = dispatchCPSTransform(fnBody.right, wrapExpressionContinuation(val2, contin))
+    contin = dispatch(fnBody.right, wrapExpressionContinuation(val2, contin))
     fnBody.right = val2
   }
   if (!pred.isSimple(fnBody.left)) {
     var val1 = gensym()
-    contin = dispatchCPSTransform(fnBody.left, wrapExpressionContinuation(val1, contin))
+    contin = dispatch(fnBody.left, wrapExpressionContinuation(val1, contin))
     fnBody.left = val1
   }
   return contin
@@ -77,7 +77,7 @@ function wrapExpressionContinuation(identifier, ast) {
 
 function transformCallExpression(callExp, wrap) {
   wrap(callExp)
-  callExp.callee = dispatchCPSTransform(callExp.callee)
+  callExp.callee = dispatch(callExp.callee)
   //callExp.arguments = callExp.arguments.
   return callExp
 }
@@ -87,14 +87,14 @@ function transformSimple(simp, wrap) {
 }
 
 function transformReturnStatement(fnBody) {
-  return wrap.ExpressionStatement(dispatchCPSTransform(fnBody.argument, wrapReturn))
+  return wrap.ExpressionStatement(dispatch(fnBody.argument, wrapReturn))
 }
 function wrapReturn(val) {
   return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), [val]))
 }
 
 function convertCPSFunc(fnBody) {
-  return wrap.FunctionExpression(dispatchCPSTransform(fnBody.body))
+  return wrap.FunctionExpression(dispatch(fnBody.body))
 }
 
 transform = { Identifier: transformSimple
@@ -109,7 +109,7 @@ transform = { Identifier: transformSimple
             //  , VariableDeclaration: transformVariableDeclaration
               , BinaryExpression: transformBinaryExpression
               , ReturnStatement: transformReturnStatement
-              , dispatch: dispatchCPSTransform
+              , dispatch: dispatch
               }
 
 module.exports = transform
