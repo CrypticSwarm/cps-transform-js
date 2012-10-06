@@ -8,8 +8,7 @@
 , "dependencies": 
   { "esprima": "0.9.9"
   , "escodegen": "0.0.9"
-  , "js-matcher": "0.0.3"
-  , "instantiator": "0.0.1"
+  , "traverse: "0.6.3"
   }
 , "devDependencies": {}
 }
