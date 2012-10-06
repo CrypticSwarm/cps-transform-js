@@ -1,12 +1,6 @@
 var wrap = require('./wrap')
 var pred = require('./predicates')
-var matcher = require('js-matcher').match
 var traverse = require('traverse')
-var instantiator = require('instantiator')
-
-function transformer(node, match, instan) {
-  return instantiator(instan, matcher(match, node))
-}
 
 function fnDecToFnExp(ast) {
   if (ast.type === 'FunctionDeclaration') ast.type = 'FunctionExpression'
@@ -20,13 +14,10 @@ function fnDecToVar(ast) {
 
 function varDecToExps(ast, noWrap) {
   return ast.declarations.map(function varDecToExp(node) {
-    return transformer(node,
-      { id: '$id', init: '$val' },
-      { type: 'AssignmentExpression'
-      , operator: '='
-      , left: '$id'
-      , right: '$val'
-      })
+    var init = node.init
+    if (init) return wrap.AssignmentExpression(node.id, node.init, '=')
+  }).filter(function removeEmptyVars(node) {
+    return node
   })
 }
 
@@ -47,11 +38,11 @@ function joinVars(varList) {
 
 function scopedTraverse(fnBody, fn) {
   return traverse(fnBody).forEach(function scopedTraversal(node) {
+    if (node == null) return;
     if (node.type) fn.call(this, node)
     if (pred.isFunction(this.node)) this.block()
   })
 }
-
 
 function collect(fnBody, typeFn) {
   var collected = []
@@ -59,6 +50,12 @@ function collect(fnBody, typeFn) {
     if (typeFn(node)) collected.push(this)
   })
   return collected
+}
+
+function ret(a) {
+  return function (item) {
+    return item[a]
+  }
 }
 
 function replaces(exps, cont) {
