@@ -15,3 +15,9 @@ function isBlock(node) {
 function isSimple(node) {
   return node.type === 'Literal' || node.type === 'Identifier'
 }
+
+module.exports = { isSimple: isSimple
+                 , isBlock: isBlock
+                 , isScoped: isScoped
+                 , isFunction: isFunction
+                 }
