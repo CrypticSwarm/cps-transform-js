@@ -50,5 +50,6 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , VariableDeclarator: VariableDeclarator
                  , VariableDeclaration: VariableDeclaration
                  , AssignmentExpression: AssignmentExpression
+                 , EmptyStatement: { type: "EmptyStatement" }
                  }
 
