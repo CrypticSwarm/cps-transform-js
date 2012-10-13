@@ -40,6 +40,14 @@ function convertExpContinuation(ast, val, name) {
   return wrap.CallExpression(wrap.Identifier('__continuation'), [val, wrap.FunctionExpression(wrapBlockStatement(wrap.ExpressionStatement(ast)), [name])])
 }
 
+function compose() {
+  var funcs = Array.prototype.slice.call(arguments)
+  return function (x) {
+    return funcs.reduceRight(function callFunc(a, fn) {
+      return fn(a)
+    }, x)
+  }
+}
 
 function convertCPSExp(exp) {
   return wrap.ExpressionStatement(dispatch(exp.expression, wrap.ExpressionStatement))
