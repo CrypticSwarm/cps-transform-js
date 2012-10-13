@@ -3,37 +3,48 @@ var wrap = require('./wrap')
 var transform
 
 function dispatch(node, wrap) {
-  if (pred.isBlock(node)) return convertCPSBlock(node)
-  if (pred.isFunction(node)) return convertCPSFunc(node)
-  if (node.type === 'VariableDeclaration') return convertCPSVarDec(node)
-  if (node.type === 'ExpressionStatement') return convertCPSExp(node)
-  if (node.type === 'ReturnStatement') return transformReturnStatement(node)
+  if (pred.isFunction(node)) return convertCPSFunc(node, wrap)
+  if (node.type === 'VariableDeclaration') return convertCPSVarDec(node, wrap)
+  if (node.type === 'ExpressionStatement') return convertCPSExp(node, wrap)
+  if (node.type === 'ReturnStatement') return transformReturnStatement(node, wrap)
   if (transform[node.type]) return transform[node.type](node, wrap)
-  return node
+  return wrap ? wrap(node) : node
 }
 
-function convertCPSBlock(block, wrap) {
+function identity(x) { return x }
+
+function transformProgram(block) {
+  var x = transformBlockStatement(block, identity)
+  console.log(x.body[0].expression.arguments[0].body.body[0])
+  return x
+}
+
+function transformBlockStatement(block, contin) {
   var body = block.body
-  if (body.length) {
-    body[body.length-1] = convertContinuation(dispatch(body[body.length-1]))
-    body = body.reduceRight(function (a, b) {
-      return convertContinuation([dispatch(b), a])
+  function convertStatement(i) {
+    var next = i + 1
+    var cur = body[i]
+    if (next == body.length) return wrap.EmptyStatement//dispatch(cur, contin)
+    return dispatch(cur, function (val) {
+      return [val, convertContinuation(convertStatement(next))]
     })
-    block.body = [body]
   }
+  var b = convertStatement(0)
+  block.body = [wrap.ExpressionStatement(convertContinuation(b))]
   return block
 }
 
-function convertCPSVarDec(varDec) {
+function convertCPSVarDec(varDec, wrap) {
   varDec.declarations.forEach(function (varDec) {
     if (varDec.init) dispatch(varDec.init)
   })
-  return varDec
+  return wrap(varDec)
 }
 
 
 function convertContinuation(ast) {
-  return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__continuation'), [wrap.FunctionExpression(wrap.BlockStatement(ast))]))
+  return wrap.CallExpression(wrap.Identifier('__continuation'),
+                        [wrap.FunctionExpression(wrap.BlockStatement(ast))])
 }
 
 function convertExpContinuation(ast, val, name) {
@@ -49,8 +60,8 @@ function compose() {
   }
 }
 
-function convertCPSExp(exp) {
-  return wrap.ExpressionStatement(dispatch(exp.expression, wrap.ExpressionStatement))
+function convertCPSExp(exp, contin) {
+  return wrap.ExpressionStatement(dispatch(exp.expression, compose(contin, wrap.ExpressionStatement)))
 }
 
 var gensym = (function () {
@@ -84,8 +95,11 @@ function wrapExpressionContinuation(identifier, ast) {
 
 
 function transformCallExpression(callExp, wrap) {
-  wrap(callExp)
-  callExp.callee = dispatch(callExp.callee)
+  var contin = dispatch(callExp.callee, function (callee) {
+    callExp.callee = callee
+  })
+  // collect arguments via gensyms
+  // add extra arg on the end for rest of computation
   //callExp.arguments = callExp.arguments.
   return callExp
 }
@@ -102,12 +116,12 @@ function wrapReturn(val) {
 }
 
 function convertCPSFunc(func) {
-  return wrap.FunctionExpression(dispatch(func.body))
+  return wrap.FunctionExpression(dispatch(func.body, identity))
 }
 
 transform = { Identifier: transformSimple
-            //  , Program: transformProgram
-            //  , BlockStatement: transformBlockStatement
+            , Program: transformProgram
+            , BlockStatement: transformBlockStatement
             //  , ExpressionStatement: transformExpressionStatement
             //  , FunctionExpression: transformFunctionExpression
               , CallExpression: transformCallExpression
