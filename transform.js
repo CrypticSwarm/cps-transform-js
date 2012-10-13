@@ -3,10 +3,6 @@ var wrap = require('./wrap')
 var transform
 
 function dispatch(node, wrap) {
-  if (pred.isFunction(node)) return convertCPSFunc(node, wrap)
-  if (node.type === 'VariableDeclaration') return convertCPSVarDec(node, wrap)
-  if (node.type === 'ExpressionStatement') return convertCPSExp(node, wrap)
-  if (node.type === 'ReturnStatement') return transformReturnStatement(node, wrap)
   if (transform[node.type]) return transform[node.type](node, wrap)
   return wrap ? wrap(node) : node
 }
@@ -34,7 +30,7 @@ function transformBlockStatement(block, contin) {
   return block
 }
 
-function convertCPSVarDec(varDec, wrap) {
+function transformVariableDeclaration(varDec, wrap) {
   varDec.declarations.forEach(function (varDec) {
     if (varDec.init) dispatch(varDec.init)
   })
@@ -60,7 +56,7 @@ function compose() {
   }
 }
 
-function convertCPSExp(exp, contin) {
+function transformExpressionStatement(exp, contin) {
   return wrap.ExpressionStatement(dispatch(exp.expression, compose(contin, wrap.ExpressionStatement)))
 }
 
@@ -115,23 +111,22 @@ function wrapReturn(val) {
   return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), [val]))
 }
 
-function convertCPSFunc(func) {
+function transformFunctionExpression(func) {
   return wrap.FunctionExpression(dispatch(func.body, identity))
 }
 
 transform = { Identifier: transformSimple
             , Program: transformProgram
             , BlockStatement: transformBlockStatement
-            //  , ExpressionStatement: transformExpressionStatement
-            //  , FunctionExpression: transformFunctionExpression
-              , CallExpression: transformCallExpression
-            //  , SequenceExpression: transformSequenceExpression
-              , Literal: transformSimple
-            //  , VariableDeclarator: transformVariableDeclarator
-            //  , VariableDeclaration: transformVariableDeclaration
-              , BinaryExpression: transformBinaryExpression
-              , ReturnStatement: transformReturnStatement
-              , dispatch: dispatch
-              }
+            , ExpressionStatement: transformExpressionStatement
+            , FunctionExpression: transformFunctionExpression
+            , FunctionDeclaration: transformFunctionExpression
+            , CallExpression: transformCallExpression
+            , Literal: transformSimple
+            , VariableDeclaration: transformVariableDeclaration
+            , BinaryExpression: transformBinaryExpression
+            , ReturnStatement: transformReturnStatement
+            , dispatch: dispatch
+            }
 
 module.exports = transform
