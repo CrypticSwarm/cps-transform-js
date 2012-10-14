@@ -127,6 +127,7 @@ function wrapReturn(val, ret) {
 }
 
 function transformFunctionExpression(func) {
+  func.params.push(wrap.Identifier('__return'))
   return dispatch(func.body, wrap.FunctionExpression)
 }
 
