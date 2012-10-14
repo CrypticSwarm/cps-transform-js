@@ -31,11 +31,11 @@ function transformBlockStatement(block, contin) {
   return block
 }
 
-function transformVariableDeclaration(varDec, wrap) {
+function transformVariableDeclaration(varDec, contin) {
   varDec.declarations.forEach(function (varDec) {
     if (varDec.init) dispatch(varDec.init)
   })
-  return wrap(varDec)
+  return contin(varDec, identity)
 }
 
 
@@ -103,11 +103,12 @@ function transformCallExpression(callExp, wrap) {
   return callExp
 }
 
-function transformSimple(simp, wrap) {
-  return wrap(simp, identity)
+function transformSimple(simp, contin) {
+  return contin(simp, identity)
 }
 
-function transformReturnStatement(retSt) {
+function transformReturnStatement(retSt, contin) {
+  // Doesn't call contin because when you get to a return theres nothing after...
   return wrap.ExpressionStatement(dispatch(retSt.argument, wrapReturn))
 }
 function wrapReturn(val, ret) {
@@ -115,7 +116,7 @@ function wrapReturn(val, ret) {
 }
 
 function transformFunctionExpression(func) {
-  return wrap.FunctionExpression(dispatch(func.body, identity))
+  return dispatch(func.body, wrap.FunctionExpression)
 }
 
 transform = { Identifier: transformSimple
