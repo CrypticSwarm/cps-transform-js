@@ -44,19 +44,6 @@ function convertContinuation(ast) {
                         [wrap.FunctionExpression(wrap.BlockStatement(ast))]))
 }
 
-function convertExpContinuation(ast, val, name) {
-  return wrap.CallExpression(wrap.Identifier('__continuation'), [val, wrap.FunctionExpression(wrapBlockStatement(wrap.ExpressionStatement(ast)), [name])])
-}
-
-function compose() {
-  var funcs = Array.prototype.slice.call(arguments)
-  return function (x) {
-    return funcs.reduceRight(function callFunc(a, fn) {
-      return fn(a)
-    }, x)
-  }
-}
-
 function transformExpressionStatement(exp, contin) {
   return dispatch(exp.expression, function (val, ret) {
     return ret(contin(val, wrap.ExpressionStatement))
@@ -91,7 +78,6 @@ function wrapExpressionContinuation(identifier, ast) {
     return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__continuation'), [val, wrap.FunctionExpression(wrap.BlockStatement(ret(ast)), [identifier])]))
   }
 }
-
 
 function transformCallExpression(callExp, contin) {
   var exp = wrap.ExpressionStatement(callExp)
