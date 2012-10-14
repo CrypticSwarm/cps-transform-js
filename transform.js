@@ -93,14 +93,25 @@ function wrapExpressionContinuation(identifier, ast) {
 }
 
 
-function transformCallExpression(callExp, wrap) {
-  var exp = dispatch(callExp.callee, function (callee) {
-    callExp.callee = callee
-  })
-  // collect arguments via gensyms
-  // add extra arg on the end for rest of computation
-  //callExp.arguments = callExp.arguments.
-  return callExp
+function transformCallExpression(callExp, contin) {
+  var exp = wrap.ExpressionStatement(callExp)
+  if (!pred.isSimple(callExp.callee)) {
+    var sym = gensym()
+    exp = dispatch(callExp.callee, wrapExpressionContinuation(sym, exp))
+    callExp.callee = sym
+  }
+  callExp.arguments = callExp.arguments.slice().reverse().map(function (arg) {
+    if (!pred.isSimple(arg)) {
+      var sym = gensym()
+      exp = dispatch(arg, wrapExpressionContinuation(sym, exp))
+      return sym
+    }
+    return arg
+  }).reverse()
+  var sym = gensym()
+  var x = wrap.FunctionExpression(wrap.BlockStatement(contin(sym, identity)), [sym])
+  callExp.arguments.push(x)
+  return exp
 }
 
 function transformSimple(simp, contin) {
