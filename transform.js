@@ -33,7 +33,7 @@ function transformBlockStatement(block, contin) {
 
 function transformVariableDeclaration(varDec, contin) {
   varDec.declarations.forEach(function (varDec) {
-    if (varDec.init) dispatch(varDec.init)
+    if (varDec.init) dispatch(varDec.init, defaultContin)
   })
   return contin(varDec, identity)
 }
@@ -67,6 +67,7 @@ function transformBinaryExpression(binexp, contin) {
   }
   if (!pred.isSimple(binexp.left)) {
     var val1 = gensym()
+    console.log('left-->', val1)
     exp = dispatch(binexp.left, wrapExpressionContinuation(val1, exp))
     binexp.left = val1
   }
@@ -75,17 +76,13 @@ function transformBinaryExpression(binexp, contin) {
 
 function wrapExpressionContinuation(identifier, ast) {
   return function wrapExpContin(val, ret) {
+    console.log(val)
     return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__continuation'), [val, wrap.FunctionExpression(wrap.BlockStatement(ret(ast)), [identifier])]))
   }
 }
 
 function transformCallExpression(callExp, contin) {
   var exp = wrap.ExpressionStatement(callExp)
-  if (!pred.isSimple(callExp.callee)) {
-    var sym = gensym()
-    exp = dispatch(callExp.callee, wrapExpressionContinuation(sym, exp))
-    callExp.callee = sym
-  }
   callExp.arguments = callExp.arguments.slice().reverse().map(function (arg) {
     if (!pred.isSimple(arg)) {
       var sym = gensym()
@@ -94,10 +91,17 @@ function transformCallExpression(callExp, contin) {
     }
     return arg
   }).reverse()
+  if (!pred.isSimple(callExp.callee)) {
+    var sym = gensym()
+    exp = dispatch(callExp.callee, wrapExpressionContinuation(sym, exp))
+    callExp.callee = sym
+  }
   var sym = gensym()
-  var x = wrap.FunctionExpression(wrap.BlockStatement(contin(sym, identity)), [sym])
-  callExp.arguments.push(x)
-  return exp
+  return contin(sym, function (val) {
+    //console.log(exp.body[0].expression.arguments[0].body.body)
+    callExp.arguments.push(wrap.FunctionExpression(wrap.BlockStatement(val), [sym]))
+    return exp//wrap.ExpressionStatement(callExp)
+  })
 }
 
 function transformSimple(simp, contin) {
@@ -106,15 +110,19 @@ function transformSimple(simp, contin) {
 
 function transformReturnStatement(retSt, contin) {
   // Doesn't call contin because when you get to a return theres nothing after...
-  return wrap.ExpressionStatement(dispatch(retSt.argument, wrapReturn))
+  return retSt.argument == null ? wrapReturn(null, identity)
+       : wrap.ExpressionStatement(dispatch(retSt.argument, wrapReturn))
 }
 function wrapReturn(val, ret) {
-  return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), [val]))
+  return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), val == null ? null : [ret(val)]))
 }
 
-function transformFunctionExpression(func) {
-  func.params.push(wrap.Identifier('__return'))
-  return dispatch(func.body, wrap.FunctionExpression)
+function transformFunctionExpression(func, contin) {
+  return contin(func, function () {
+    func.params.push(wrap.Identifier('__return'))
+    func.body.body.push(wrap.ReturnStatement(null))
+    return dispatch(func.body, wrap.FunctionExpression)
+  })
 }
 
 transform = { Identifier: transformSimple

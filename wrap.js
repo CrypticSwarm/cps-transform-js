@@ -40,6 +40,10 @@ function AssignmentExpression(left, right, op) {
   return { type: 'AssignmentExpression', operator: op, left: left, right: right }
 }
 
+function ReturnStatement(val) {
+  return { type: 'ReturnStatement', argument: val }
+}
+
 module.exports = { ExpressionStatement: ExpressionStatement
                  , Program: Program
                  , BlockStatement: BlockStatement
@@ -50,6 +54,7 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , VariableDeclarator: VariableDeclarator
                  , VariableDeclaration: VariableDeclaration
                  , AssignmentExpression: AssignmentExpression
+                 , ReturnStatement: ReturnStatement
                  , EmptyStatement: { type: "EmptyStatement" }
                  }
 
