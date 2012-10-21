@@ -15,20 +15,28 @@ function __continuation(val, cb) {
     __i_tick++
     console.log('tick', __i_tick , ': ', val)
     cb(val)
-  }, 1000)
+  }, 100)
 }
 
-print(escodegen(
-  convert(
-    esprima('1 + 2 + 3 + 4 + 5')
-  )
-))
+function __end(val) {
+  console.log('Ending value', val)
+}
 
+function run(str) {
+  print(escodegen(convert(esprima(str, { loc: true, range: true }))).slice(0,-1) + '()')
+}
+
+run('plus(1+2, 3+4) + 5')
 console.log('\n')
+run('1 + 2 + 3 + 4+5+6; 3+4+5;4+5+6;')
+console.log('\n')
+run('function plus(a,b) { return a+b; }\n plus(1, 2)+3;')
+console.log('\n')
+run('var a=1,b=2,c=3,d=4,zzz=55,xxx=23; (function (a) { var x; return a + b + (c + d); var y, z = 4; })(zzz+xxx) + 2;')
+console.log('\n')
+run('function plus(a,b) { return a + b; }\n(plus(1,2) + plus(3+4+5,6+7+8))')
+console.log('\n')
+run('1 + 2 + 3 + 4; 3 + 2; 9 + 12; 123 + 123;')
+/*
 
-print(escodegen(
-  convert(
-    esprima('var a=1,b=2,c=3,d=4; (function () { return a + b + (c + d) })()')
-  )
-))
-
+*/
