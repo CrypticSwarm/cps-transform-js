@@ -9,26 +9,23 @@ function dispatch(node, wrap) {
 
 function identity(x) { return x }
 
-function defaultContin(x, ret) {
-  return ret(x)
+function defaultContin(x) {
+  return wrap.FunctionExpression(wrap.BlockStatement(wrap.EmptyStatement))
 }
 
-function transformProgram(block) {
-  return transformBlockStatement(block, defaultContin)
+function transformProgram(prog) {
+  prog.body = [wrap.ExpressionStatement(transformBlockStatement(prog, defaultContin))]
+  return prog
 }
 
 function transformBlockStatement(block, contin) {
   var body = block.body
   function convertStatement(i) {
     var next = i + 1
-    var cur = body[i]
-    return dispatch(cur, function (val, ret) {
-      if (next == body.length) return contin(val, ret)
-      return [ret(val), convertContinuation(convertStatement(next))]
-    })
+    return next === body.length ? dispatch(body[i], contin)
+         : dispatch(body[i], convertStatement.bind(null, next))
   }
-  block.body = [convertContinuation(convertStatement(0))]
-  return block
+  return convertStatement(0)
 }
 
 function transformVariableDeclaration(varDec, contin) {
@@ -45,9 +42,7 @@ function convertContinuation(ast) {
 }
 
 function transformExpressionStatement(exp, contin) {
-  return dispatch(exp.expression, function (val, ret) {
-    return ret(contin(val, wrap.ExpressionStatement))
-  })
+  return dispatch(exp.expression, contin)
 }
 
 var gensym = (function () {
@@ -59,19 +54,39 @@ var gensym = (function () {
 })()
 
 function transformBinaryExpression(binexp, contin) {
-  var exp = contin(binexp, identity)
-  if (!pred.isSimple(binexp.right)) {
-    var val2 = gensym()
-    exp = dispatch(binexp.right, wrapExpressionContinuation(val2, exp))
-    binexp.right = val2
+  return doLeft()
+  function doLeft() {
+    if (!pred.isSimple(binexp.left)) {
+      var val1 = gensym()
+      exp = dispatch(binexp.left, doRight.bind(null, [val1]))
+      binexp.left = val1
+      return exp
+    }
+    else return doRight([])
   }
-  if (!pred.isSimple(binexp.left)) {
-    var val1 = gensym()
-    console.log('left-->', val1)
-    exp = dispatch(binexp.left, wrapExpressionContinuation(val1, exp))
-    binexp.left = val1
+  function doRight(sym) {
+    if (!pred.isSimple(binexp.right)) {
+      var val2 = gensym()
+      exp = dispatch(binexp.right, doMain.bind(null, [val2]))
+      exp.params = sym
+      binexp.right = val2
+      return exp
+    }
+    else return doMain(sym)
   }
-  return exp
+  function doMain(sym) {
+    var exp = continuation(binexp, contin(), sym)
+    exp.params = sym
+    return exp
+  }
+}
+
+function continuation(val, func, sym) {
+  return wrap.FunctionExpression(wrap.BlockStatement([
+    wrap.ExpressionStatement(
+      wrap.CallExpression(
+        wrap.Identifier('__continuation'),
+        [val, func]))]))
 }
 
 function wrapExpressionContinuation(identifier, ast) {
@@ -105,7 +120,7 @@ function transformCallExpression(callExp, contin) {
 }
 
 function transformSimple(simp, contin) {
-  return contin(simp, identity)
+  return continuation(simp, contin())
 }
 
 function transformReturnStatement(retSt, contin) {
