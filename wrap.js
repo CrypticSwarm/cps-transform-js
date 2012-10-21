@@ -32,8 +32,8 @@ function VariableDeclarator(id, init) {
   return { type: 'VariableDeclarator', id: id, init: init }
 }
 
-function VariableDeclaration(id, init) {
-  return { type: 'VariableDeclaration', declarations: [VariableDeclarator(id, init)], kind: 'var' }
+function VariableDeclaration(varDecs) {
+  return { type: 'VariableDeclaration', declarations: varDecs || [], kind: 'var' }
 }
 
 function AssignmentExpression(left, right, op) {

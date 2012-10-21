@@ -9,7 +9,7 @@ function fnDecToFnExp(ast) {
 
 function fnDecToVar(ast) {
   var fn = fnDecToFnExp(ast)
-  return wrap.VariableDeclaration(fn.id, fn)
+  return wrap.VariableDeclaration([wrap.VariableDeclarator(fn.id, fn)])
 }
 
 function varDecToExps(ast, noWrap) {
