@@ -2,15 +2,15 @@ var pred = require('./predicates')
 var wrap = require('./wrap')
 var transform
 
-function dispatch(node, wrap) {
-  if (transform[node.type]) return transform[node.type](node, wrap)
-  return wrap ? wrap(node, identity) : node
+function dispatch(node, contin) {
+  if (transform[node.type]) return transform[node.type](node, contin)
+  return contin ? continuation(node, contin()) : node
 }
 
 function identity(x) { return x }
 
 function defaultContin(x) {
-  return wrap.FunctionExpression(wrap.BlockStatement(wrap.EmptyStatement))
+  return wrap.FunctionExpression(wrap.BlockStatement([]))
 }
 
 function transformProgram(prog) {
@@ -32,14 +32,13 @@ function transformVariableDeclaration(varDec, contin) {
   varDec.declarations.forEach(function (varDec) {
     if (varDec.init) dispatch(varDec.init, defaultContin)
   })
-  return contin(varDec, identity)
+  return continuation(wrap.Literal(null), wrap.FunctionExpression(wrap.BlockStatement([varDec
+    , wrap.ExpressionStatement(wrap.CallExpression(
+        wrap.Identifier('__continuation'),
+        [wrap.Literal(null), contin()]))
+  ])))
 }
 
-
-function convertContinuation(ast) {
-  return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__continuation'),
-                        [wrap.FunctionExpression(wrap.BlockStatement(ast))]))
-}
 
 function transformExpressionStatement(exp, contin) {
   return dispatch(exp.expression, contin)
@@ -54,34 +53,34 @@ var gensym = (function () {
 })()
 
 function transformBinaryExpression(binexp, contin) {
-  return doLeft()
-  function doLeft() {
+  return convertLeft()
+  function convertLeft() {
     if (!pred.isSimple(binexp.left)) {
       var val1 = gensym()
-      exp = dispatch(binexp.left, doRight.bind(null, [val1]))
+      exp = dispatch(binexp.left, convertRight.bind(null, [val1]))
       binexp.left = val1
       return exp
     }
-    else return doRight([])
+    else return convertRight([])
   }
-  function doRight(sym) {
+  function convertRight(sym) {
     if (!pred.isSimple(binexp.right)) {
       var val2 = gensym()
-      exp = dispatch(binexp.right, doMain.bind(null, [val2]))
+      exp = dispatch(binexp.right, convertMain.bind(null, [val2]))
       exp.params = sym
       binexp.right = val2
       return exp
     }
-    else return doMain(sym)
+    else return convertMain(sym)
   }
-  function doMain(sym) {
-    var exp = continuation(binexp, contin(), sym)
+  function convertMain(sym) {
+    var exp = continuation(binexp, contin())
     exp.params = sym
     return exp
   }
 }
 
-function continuation(val, func, sym) {
+function continuation(val, func) {
   return wrap.FunctionExpression(wrap.BlockStatement([
     wrap.ExpressionStatement(
       wrap.CallExpression(
@@ -89,34 +88,35 @@ function continuation(val, func, sym) {
         [val, func]))]))
 }
 
-function wrapExpressionContinuation(identifier, ast) {
-  return function wrapExpContin(val, ret) {
-    console.log(val)
-    return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__continuation'), [val, wrap.FunctionExpression(wrap.BlockStatement(ret(ast)), [identifier])]))
-  }
-}
-
 function transformCallExpression(callExp, contin) {
-  var exp = wrap.ExpressionStatement(callExp)
-  callExp.arguments = callExp.arguments.slice().reverse().map(function (arg) {
+  return convertCallee()
+  function convertCallee() {
+    if (!pred.isSimple(callExp.callee)) {
+      var sym = gensym()
+      exp = dispatch(callExp.callee, convertArg.bind(null, 0, [sym]))
+      callExp.callee = sym
+      return exp
+    }
+    return convertArg(0, [])
+  }
+  function convertArg(i, param) {
+    if (i === callExp.arguments.length) return finish(param)
+    var arg = callExp.arguments[i]
     if (!pred.isSimple(arg)) {
       var sym = gensym()
-      exp = dispatch(arg, wrapExpressionContinuation(sym, exp))
-      return sym
+      exp = dispatch(arg, convertArg.bind(null, i+1, [sym]))
+      exp.params = param;
+      callExp.arguments[i] = sym
+      return exp
     }
-    return arg
-  }).reverse()
-  if (!pred.isSimple(callExp.callee)) {
-    var sym = gensym()
-    exp = dispatch(callExp.callee, wrapExpressionContinuation(sym, exp))
-    callExp.callee = sym
+    return convertArg(i+1, param)
   }
-  var sym = gensym()
-  return contin(sym, function (val) {
-    //console.log(exp.body[0].expression.arguments[0].body.body)
-    callExp.arguments.push(wrap.FunctionExpression(wrap.BlockStatement(val), [sym]))
-    return exp//wrap.ExpressionStatement(callExp)
-  })
+  function finish(param) {
+    var exp = wrap.FunctionExpression(wrap.BlockStatement([wrap.ExpressionStatement(callExp)]))
+    exp.params = param
+    callExp.arguments.push(contin())
+    return exp
+  }
 }
 
 function transformSimple(simp, contin) {
@@ -126,18 +126,18 @@ function transformSimple(simp, contin) {
 function transformReturnStatement(retSt, contin) {
   // Doesn't call contin because when you get to a return theres nothing after...
   return retSt.argument == null ? wrapReturn(null, identity)
-       : wrap.ExpressionStatement(dispatch(retSt.argument, wrapReturn))
-}
-function wrapReturn(val, ret) {
-  return wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), val == null ? null : [ret(val)]))
+       : dispatch(retSt.argument, wrapReturn.bind(null, gensym()))
+
+  function wrapReturn(val) {
+    return wrap.FunctionExpression(wrap.BlockStatement([wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), val == null ? null : [val]))]), [val])
+  }
 }
 
 function transformFunctionExpression(func, contin) {
-  return contin(func, function () {
-    func.params.push(wrap.Identifier('__return'))
-    func.body.body.push(wrap.ReturnStatement(null))
-    return dispatch(func.body, wrap.FunctionExpression)
-  })
+  func.params.push(wrap.Identifier('__return'))
+  func.body.body.push(wrap.ReturnStatement(null))
+  func.body = wrap.BlockStatement([wrap.ExpressionStatement(dispatch(func.body, defaultContin))])
+  return continuation(func, contin())
 }
 
 transform = { Identifier: transformSimple

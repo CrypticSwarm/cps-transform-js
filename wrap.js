@@ -44,6 +44,10 @@ function ReturnStatement(val) {
   return { type: 'ReturnStatement', argument: val }
 }
 
+function Literal(val) {
+  return { type: 'Literal', value: val }
+}
+
 module.exports = { ExpressionStatement: ExpressionStatement
                  , Program: Program
                  , BlockStatement: BlockStatement
@@ -56,5 +60,6 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , AssignmentExpression: AssignmentExpression
                  , ReturnStatement: ReturnStatement
                  , EmptyStatement: { type: "EmptyStatement" }
+                 , Literal: Literal
                  }
 
