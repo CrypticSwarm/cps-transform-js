@@ -9,12 +9,16 @@ function dispatch(node, contin) {
 
 function identity(x) { return x }
 
-function defaultContin(x) {
+function endingContin() {
+  return wrap.Identifier('__end')
+}
+
+function defaultContin() {
   return wrap.FunctionExpression(wrap.BlockStatement([]))
 }
 
 function transformProgram(prog) {
-  prog.body = [wrap.ExpressionStatement(transformBlockStatement(prog, defaultContin))]
+  prog.body = [wrap.ExpressionStatement(transformBlockStatement(prog, endingContin))]
   return prog
 }
 
@@ -134,10 +138,11 @@ function transformReturnStatement(retSt, contin) {
 }
 
 function transformFunctionExpression(func, contin) {
-  func.params.push(wrap.Identifier('__return'))
   func.body.body.push(wrap.ReturnStatement(null))
-  func.body = wrap.BlockStatement([wrap.ExpressionStatement(dispatch(func.body, defaultContin))])
-  return continuation(func, contin())
+  func.params.push(wrap.Identifier('__return'))
+  var bodyFunc = dispatch(func.body)
+  bodyFunc.params = func.params
+  return continuation(bodyFunc, contin())
 }
 
 transform = { Identifier: transformSimple
