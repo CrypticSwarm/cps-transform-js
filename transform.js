@@ -13,10 +13,6 @@ function endingContin() {
   return wrap.Identifier('__end')
 }
 
-function defaultContin() {
-  return wrap.FunctionExpression(wrap.BlockStatement([]))
-}
-
 function makeVarContin() {
   var varDecs = []
   return { get: function () { return join() }
@@ -60,13 +56,6 @@ function transformVariableDeclaration(varDec, contin, varContin) {
     dec.init = null
     return dispatch(assignExp, convertVarDec.bind(null, i+1), varContin)
   }
-  /*
-  return continuation(wrap.Literal(null), wrap.FunctionExpression(wrap.BlockStatement([varDec
-    , wrap.ExpressionStatement(wrap.CallExpression(
-        wrap.Identifier('__continuation'),
-        [wrap.Literal(null), contin()]))
-  ])))
-  */
 }
 
 
