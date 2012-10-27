@@ -71,29 +71,16 @@ var gensym = (function () {
   }
 })()
 
-function transformBinaryExpression(binexp, contin, varContin) {
+function transformBinaryExpression(binExp, contin, varContin) {
   return convertLeft()
   function convertLeft() {
-    if (!pred.isSimple(binexp.left)) {
-      var val1 = gensym()
-      exp = dispatch(binexp.left, convertRight.bind(null, [val1]), varContin)
-      binexp.left = val1
-      return exp
-    }
-    else return convertRight([])
+    return convertHelper(binExp, 'left', [], convertRight, varContin)
   }
   function convertRight(sym) {
-    if (!pred.isSimple(binexp.right)) {
-      var val2 = gensym()
-      exp = dispatch(binexp.right, convertMain.bind(null, [val2]), varContin)
-      exp.params = sym
-      binexp.right = val2
-      return exp
-    }
-    else return convertMain(sym)
+    return convertHelper(binExp, 'right', sym, convertMain, varContin)
   }
   function convertMain(sym) {
-    var exp = continuation(binexp, contin())
+    var exp = continuation(binExp, contin())
     exp.params = sym
     return exp
   }
@@ -110,25 +97,11 @@ function continuation(val, func) {
 function transformCallExpression(callExp, contin, varContin) {
   return convertCallee()
   function convertCallee() {
-    if (!pred.isSimple(callExp.callee)) {
-      var sym = gensym()
-      exp = dispatch(callExp.callee, convertArg.bind(null, 0, [sym]), varContin)
-      callExp.callee = sym
-      return exp
-    }
-    return convertArg(0, [])
+    return convertHelper(callExp, 'callee', [], convertArg.bind(null, 0), varContin)
   }
   function convertArg(i, param) {
     if (i === callExp.arguments.length) return finish(param)
-    var arg = callExp.arguments[i]
-    if (!pred.isSimple(arg)) {
-      var sym = gensym()
-      exp = dispatch(arg, convertArg.bind(null, i+1, [sym]), varContin)
-      exp.params = param;
-      callExp.arguments[i] = sym
-      return exp
-    }
-    return convertArg(i+1, param)
+    return convertHelper(callExp.arguments, i, param, convertArg.bind(null, i+1), varContin)
   }
   function finish(param) {
     var exp = wrap.FunctionExpression(wrap.BlockStatement([wrap.ExpressionStatement(callExp)]))
@@ -136,6 +109,17 @@ function transformCallExpression(callExp, contin, varContin) {
     callExp.arguments.push(contin())
     return exp
   }
+}
+
+function convertHelper(subject, prop, defaultVal, contin, varContin) {
+  if (!pred.isSimple(subject[prop])) {
+    var sym = gensym()
+    exp = dispatch(subject[prop], contin.bind(null, [sym]), varContin)
+    subject[prop] = sym
+    exp.params = defaultVal
+    return exp
+  }
+  else return contin(defaultVal)
 }
 
 function transformSimple(simp, contin, varContin) {
