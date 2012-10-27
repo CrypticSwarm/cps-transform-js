@@ -36,9 +36,8 @@ function transformProgram(prog) {
 function transformBlockStatement(block, contin, varContin) {
   var body = block.body
   function convertStatement(i) {
-    var next = i + 1
-    return next === body.length ? dispatch(body[i], contin, varContin)
-         : dispatch(body[i], convertStatement.bind(null, next), varContin)
+    return i === body.length ? contin()
+         : dispatch(body[i], convertStatement.bind(null, i+1), varContin)
   }
   return convertStatement(0)
 }
