@@ -118,7 +118,10 @@ function convertHelper(subject, prop, defaultVal, contin, varContin) {
     exp.params = defaultVal
     return exp
   }
-  else return contin(defaultVal)
+  else if (pred.isIdentifier(subject[prop])) {
+    subject[prop] = dispatch(subject[prop], contin.bind(null, defaultVal), varContin)
+  }
+  return contin(defaultVal)
 }
 
 function transformSimple(simp, contin, varContin) {
@@ -159,7 +162,11 @@ function transformFunctionDeclaration(func, contin, varContin) {
   return contin()
 }
 
-transform = { Identifier: transformSimple
+function transformIdentifier(id, contin, varContin) {
+  return wrap.MemberExpression(wrap.Identifier('__scope'), id);
+}
+
+transform = { Identifier: transformIdentifier
             , Program: transformProgram
             , BlockStatement: transformBlockStatement
             , ExpressionStatement: transformExpressionStatement

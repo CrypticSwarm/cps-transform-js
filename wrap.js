@@ -48,6 +48,10 @@ function Literal(val) {
   return { type: 'Literal', value: val }
 }
 
+function MemberExpression(obj, val) {
+  return { type: 'MemberExpression', object: obj, property: val, isComputed: false }
+}
+
 module.exports = { ExpressionStatement: ExpressionStatement
                  , Program: Program
                  , BlockStatement: BlockStatement
@@ -61,5 +65,6 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , ReturnStatement: ReturnStatement
                  , EmptyStatement: { type: "EmptyStatement" }
                  , Literal: Literal
+                 , MemberExpression: MemberExpression
                  }
 
