@@ -7,8 +7,6 @@ function dispatch(node, contin, varContin) {
   return contin ? continuation(node, contin()) : node
 }
 
-function identity(x) { return x }
-
 function endingContin() {
   return wrap.Identifier('__end')
 }
@@ -132,7 +130,7 @@ function transformReturnStatement(retSt, contin, varContin) {
   // Doesn't use contin only calls so that varDecs can be collected that come after return.
   // because when you get to a return theres nothing after...
   contin()
-  return retSt.argument == null ? wrapReturn(null, identity)
+  return retSt.argument == null ? wrapReturn(null)
        : dispatch(retSt.argument, wrapReturn.bind(null, gensym()), varContin)
 
 }
