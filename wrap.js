@@ -52,6 +52,14 @@ function MemberExpression(obj, val) {
   return { type: 'MemberExpression', object: obj, property: val, isComputed: false }
 }
 
+function ObjectExpression(props) {
+  return { type: 'ObjectExpression',  properties: props || [] }
+}
+
+function Property(key, val) {
+  return { type: 'Property', kind: 'init', key: key, value: val }
+}
+
 module.exports = { ExpressionStatement: ExpressionStatement
                  , Program: Program
                  , BlockStatement: BlockStatement
@@ -66,5 +74,8 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , EmptyStatement: { type: "EmptyStatement" }
                  , Literal: Literal
                  , MemberExpression: MemberExpression
+                 , ObjectExpression: ObjectExpression
+                 , Property: Property
+                 , ThisExpression: { type: "ThisExpression" }
                  }
 

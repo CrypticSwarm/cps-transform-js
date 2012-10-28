@@ -8,27 +8,38 @@ function print(what) {
   process.stdout.write('\033[39m')
 }
 
-var __i_tick = 0;
+var __i_tick = 0
+var __undefined
 function __continuation(val, cb) {
   if (arguments.length === 1) cb = val,val=null;
   setTimeout(function () {
     __i_tick++
     console.log('tick', __i_tick , ': ', val)
     cb(val)
-  }, 100)
+  }, 50)
 }
 
 function __end(val) {
   console.log('Ending value', val)
 }
 
-function run(str) {
-  print(escodegen(convert(esprima(str, { loc: true, range: true }))).slice(0,-1) + '()')
+var __globalScope = {}
+
+function __createScopeObject(scopeDef, parentScope) {
+  var scope =  Object.create(parentScope, scope)
+  Object.keys(scopeDef).forEach(function(key) {
+    scope[key] = scopeDef[key]
+  })
+  return scope
 }
 
-run('plus(1+2, 3+4) + 5')
+function run(str) {
+  eval(escodegen(convert(esprima(str, { loc: true, range: true }))))
+}
+
+run('function plus(a,b) { return a + b; }\nplus(1+2, 3+4) + 5')
 console.log('\n')
-run('1 + 2 + 3 + 4+5+6; 3+4+5;4+5+6;')
+run('1 + 2 + 3 + 4+5+6* 3+4+5*4+5+6;')
 console.log('\n')
 run('function plus(a,b) { return a+b; }\n plus(1, 2)+3;')
 console.log('\n')
@@ -37,6 +48,3 @@ console.log('\n')
 run('function plus(a,b) { return a + b; }\n(plus(1,2) + plus(3+4+5,6+7+8))')
 console.log('\n')
 run('1 + 2 + 3 + 4; 3 + 2; 9 + 12; 123 + 123;')
-/*
-
-*/

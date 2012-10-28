@@ -25,9 +25,13 @@ function makeVarContin() {
 
 function transformProgram(prog) {
   var decContin = makeVarContin()
-  prog.body = [wrap.ExpressionStatement(transformBlockStatement(prog, endingContin, decContin.add))]
-  var decs = decContin.get()
-  if (decs.declarations.length) prog.body.unshift(decs)
+  var bodyFunc = transformBlockStatement(prog, endingContin, decContin.add)
+  prog.body = [wrap.ExpressionStatement(wrap.CallExpression(bodyFunc))]
+  var decs = varDecToScope(decContin.get())
+  decs.declarations.unshift(wrap.VariableDeclarator(wrap.Identifier('__parentScope'), wrap.Identifier('__globalScope')))
+  var parScope = wrap.AssignmentExpression(wrap.Identifier('__parentScope'), wrap.Identifier('__scope'), '=')
+  bodyFunc.body.body.unshift(wrap.ExpressionStatement(parScope))
+  prog.body.unshift(decs)
   return prog
 }
 
@@ -139,14 +143,39 @@ function wrapReturn(val) {
   return wrap.FunctionExpression(wrap.BlockStatement([wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), val == null ? null : [val]))]), [val])
 }
 
+function dotChain(arr) {
+  return arr.map(wrap.Identifier).reduce(wrap.MemberExpression)
+}
+
+function funcScopeProps(params) {
+  var arg = wrap.Identifier('arguments')
+  var slice = dotChain(['Array', 'prototype', 'slice', 'call'])
+  var props = params.map(function (param) {
+    return wrap.Property(param, param)
+  })
+  props.push(wrap.Property(wrap.Identifier('this'), wrap.ThisExpression))
+  props.push(wrap.Property(arg, wrap.CallExpression(slice, [arg])))
+  return props
+}
+
+function varDecToScope(decs, otherProps) {
+  var scopeDef = wrap.ObjectExpression(decs.declarations.map(function(dec) {
+    return wrap.Property(dec.id, dec.init == null ? wrap.Identifier('__undefined') : dec.init)
+  }).concat(otherProps || []))
+  var scope = wrap.CallExpression(wrap.Identifier('__createScopeObject'), [scopeDef, wrap.Identifier('__parentScope')])
+  return wrap.VariableDeclaration([wrap.VariableDeclarator(wrap.Identifier('__scope'), scope)])
+}
+
 function transformFunctionHelper(func, contin, varContin) {
   var decContin = makeVarContin()
   var bodyFunc = dispatch(func.body, wrapReturn, decContin.add)
   var decs = decContin.get()
-  if (decs.declarations.length) bodyFunc.body.body.unshift(decs)
-  bodyFunc.params = func.params.concat(wrap.Identifier('__return'))
-  bodyFunc.id = func.id
-  return bodyFunc
+  var parScope = wrap.AssignmentExpression(wrap.Identifier('__parentScope'), wrap.Identifier('__scope'), '=')
+  bodyFunc.body.body.unshift(wrap.ExpressionStatement(parScope))
+  var runBody = wrap.ExpressionStatement(wrap.CallExpression(bodyFunc))
+  func.body.body = [ varDecToScope(decs, funcScopeProps(func.params)), runBody ]
+  func.params = func.params.concat(wrap.Identifier('__return'))
+  return func
 }
 
 function transformFunctionExpression(func, contin, varContin) {
@@ -155,6 +184,7 @@ function transformFunctionExpression(func, contin, varContin) {
 }
 
 function transformFunctionDeclaration(func, contin, varContin) {
+  func.type = 'FunctionExpression'
   var bodyFunc = transformFunctionHelper(func, contin, varContin)
   varContin(wrap.VariableDeclaration([wrap.VariableDeclarator(func.id, bodyFunc)]))
   return contin()
@@ -174,6 +204,7 @@ transform = { Identifier: transformIdentifier
             , Literal: transformSimple
             , VariableDeclaration: transformVariableDeclaration
             , BinaryExpression: transformBinaryExpression
+            , AssignmentExpression: transformBinaryExpression
             , ReturnStatement: transformReturnStatement
             , dispatch: dispatch
             }
