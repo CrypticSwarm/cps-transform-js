@@ -26,7 +26,8 @@ function makeVarContin() {
 function transformProgram(prog) {
   var decContin = makeVarContin()
   var bodyFunc = transformBlockStatement(prog, endingContin, decContin.add)
-  prog.body = [wrap.ExpressionStatement(wrap.CallExpression(bodyFunc))]
+  var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [wrap.Identifier('__scope')])
+  prog.body = [stackPush, wrap.CallExpression(bodyFunc)].map(wrap.ExpressionStatement)
   var decs = varDecToScope(decContin.get())
   decs.declarations.unshift(wrap.VariableDeclarator(wrap.Identifier('__parentScope'), wrap.Identifier('__globalScope')))
   var parScope = wrap.AssignmentExpression(wrap.Identifier('__parentScope'), wrap.Identifier('__scope'), '=')
@@ -140,7 +141,11 @@ function transformReturnStatement(retSt, contin, varContin) {
 }
 
 function wrapReturn(val) {
-  return wrap.FunctionExpression(wrap.BlockStatement([wrap.ExpressionStatement(wrap.CallExpression(wrap.Identifier('__return'), val == null ? null : [val]))]), [val])
+  var stackPop = wrap.CallExpression(dotChain(['__stack', 'pop']))
+  var retExp = wrap.CallExpression(wrap.Identifier('__return'), val == null ? null : [val])
+  return wrap.FunctionExpression(wrap.BlockStatement(
+    [stackPop, retExp].map(wrap.ExpressionStatement)
+  ), [val])
 }
 
 function dotChain(arr) {
@@ -170,10 +175,11 @@ function transformFunctionHelper(func, contin, varContin) {
   var decContin = makeVarContin()
   var bodyFunc = dispatch(func.body, wrapReturn, decContin.add)
   var decs = decContin.get()
+  var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [wrap.Identifier('__scope')]))
   var parScope = wrap.AssignmentExpression(wrap.Identifier('__parentScope'), wrap.Identifier('__scope'), '=')
   bodyFunc.body.body.unshift(wrap.ExpressionStatement(parScope))
   var runBody = wrap.ExpressionStatement(wrap.CallExpression(bodyFunc))
-  func.body.body = [ varDecToScope(decs, funcScopeProps(func.params)), runBody ]
+  func.body.body = [ varDecToScope(decs, funcScopeProps(func.params)), stackPush, runBody ]
   func.params = func.params.concat(wrap.Identifier('__return'))
   return func
 }
