@@ -3,8 +3,8 @@ var wrap = require('./wrap')
 var transform
 
 function dispatch(node, contin, varContin) {
-  if (transform[node.type]) return transform[node.type](node, contin, varContin)
-  return contin ? continuation(node, contin()) : node
+  return transform[node.type] ? transform[node.type](node, contin, varContin)
+       : continuation(node, contin())
 }
 
 function endingContin() {
@@ -102,8 +102,8 @@ function transformCallExpression(callExp, contin, varContin) {
     return convertHelper(callExp, 'callee', [], convertArg.bind(null, 0), varContin)
   }
   function convertArg(i, param) {
-    if (i === callExp.arguments.length) return finish(param)
-    return convertHelper(callExp.arguments, i, param, convertArg.bind(null, i+1), varContin)
+    return i === callExp.arguments.length ? finish(param)
+         : convertHelper(callExp.arguments, i, param, convertArg.bind(null, i+1), varContin)
   }
   function finish(param) {
     var exp = wrap.FunctionExpression(wrap.BlockStatement([wrap.ExpressionStatement(callExp)]))
@@ -127,7 +127,7 @@ function convertHelper(subject, prop, defaultVal, contin, varContin) {
   return contin(defaultVal)
 }
 
-function transformSimple(simp, contin, varContin) {
+function transformLiteral(simp, contin, varContin) {
   return continuation(simp, contin())
 }
 
@@ -207,7 +207,7 @@ transform = { Identifier: transformIdentifier
             , FunctionExpression: transformFunctionExpression
             , FunctionDeclaration: transformFunctionDeclaration
             , CallExpression: transformCallExpression
-            , Literal: transformSimple
+            , Literal: transformLiteral
             , VariableDeclaration: transformVariableDeclaration
             , BinaryExpression: transformBinaryExpression
             , AssignmentExpression: transformBinaryExpression
