@@ -40,7 +40,8 @@ function run(str, expected) {
       __i_tick++
       var curItem = __stack[__stack.length - 1]
       //console.log('tick', __i_tick , ': ', val)
-      //console.log(curItem)
+      //console.log(__stack)
+      //console.log(val)
       cb(val)
     }, 0)
   }
@@ -48,6 +49,8 @@ function run(str, expected) {
 }
 
 run('function plus(a,b) { return a + b; }\nplus(1+2, 3+4) + 5', 15)
+console.log('\n')
+run('function makeAdder(a){ return function plus(b) { return a + b } }\nvar add1 = makeAdder(1); var add2 = makeAdder(2); add1(5) + add2(6);', 14)
 console.log('\n')
 run('1 + 2 + 3 + 4+5+6* 3+4+5*4+5+6;', 68)
 console.log('\n')
@@ -58,3 +61,5 @@ console.log('\n')
 run('function plus(a,b) { return a + b; }\n(plus(1,2) + plus(3+4+5,6+7+8))', 36)
 console.log('\n')
 run('1 + 2 + 3 + 4; 3 + 2; 9 + 12; 123 + 123;', 246)
+console.log('\n')
+//run('factorial(5)\nfunction factorial(n) { return n === 0 ? 1 : n * factorial(n - 1) }', 120)

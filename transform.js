@@ -30,8 +30,7 @@ function transformProgram(prog) {
   prog.body = [stackPush, wrap.CallExpression(bodyFunc)].map(wrap.ExpressionStatement)
   var decs = varDecToScope(decContin.get())
   decs.declarations.unshift(wrap.VariableDeclarator(wrap.Identifier('__parentScope'), wrap.Identifier('__globalScope')))
-  var parScope = wrap.AssignmentExpression(wrap.Identifier('__parentScope'), wrap.Identifier('__scope'), '=')
-  bodyFunc.body.body.unshift(wrap.ExpressionStatement(parScope))
+  addParentScope(bodyFunc.body.body)
   prog.body.unshift(decs)
   return prog
 }
@@ -171,13 +170,19 @@ function varDecToScope(decs, otherProps) {
   return wrap.VariableDeclaration([wrap.VariableDeclarator(wrap.Identifier('__scope'), scope)])
 }
 
+function addParentScope(body) {
+  var parentScope = wrap.Identifier('__parentScope')
+  var scope = wrap.Identifier('__scope')
+  var parScope = wrap.VariableDeclaration([wrap.VariableDeclarator(parentScope, scope)])
+  body.unshift(parScope)
+}
+
 function transformFunctionHelper(func, contin, varContin) {
   var decContin = makeVarContin()
   var bodyFunc = dispatch(func.body, wrapReturn, decContin.add)
   var decs = decContin.get()
   var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [wrap.Identifier('__scope')]))
-  var parScope = wrap.AssignmentExpression(wrap.Identifier('__parentScope'), wrap.Identifier('__scope'), '=')
-  bodyFunc.body.body.unshift(wrap.ExpressionStatement(parScope))
+  addParentScope(bodyFunc.body.body)
   var runBody = wrap.ExpressionStatement(wrap.CallExpression(bodyFunc))
   func.body.body = [ varDecToScope(decs, funcScopeProps(func.params)), stackPush, runBody ]
   func.params = func.params.concat(wrap.Identifier('__return'))
