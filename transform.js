@@ -217,6 +217,21 @@ function transformIdentifier(id, contin, varContin) {
   return wrap.MemberExpression(wrap.Identifier('__scope'), id)
 }
 
+function transformIfStatement(ifSt, contin, varContin) {
+  var nextSym = gensym()
+  var varDec = wrap.VariableDeclaration([wrap.VariableDeclarator(nextSym, contin())])
+  return convertHelper(ifSt, 'test', [], convertIf, varContin)
+  function getNextContin() {
+    return wrap.FunctionExpression(wrap.BlockStatement([
+      wrap.ExpressionStatement(wrap.CallExpression(nextSym))]))
+  }
+  function convertIf(sym) {
+    ifSt.consequent = wrap.ExpressionStatement(wrap.CallExpression(dispatch(ifSt.consequent, getNextContin, varContin)))
+    if (ifSt.alternate) ifSt.alternate = wrap.ExpressionStatement(wrap.CallExpression(dispatch(ifSt.alternate, getNextContin, varContin)))
+    return wrap.FunctionExpression(wrap.BlockStatement([varDec, ifSt]), sym)
+  }
+}
+
 transform = { Identifier: transformIdentifier
             , Program: transformProgram
             , BlockStatement: transformBlockStatement
@@ -229,6 +244,7 @@ transform = { Identifier: transformIdentifier
             , BinaryExpression: transformBinaryExpression
             , AssignmentExpression: transformBinaryExpression
             , ReturnStatement: transformReturnStatement
+            , IfStatement: transformIfStatement
             , dispatch: dispatch
             }
 
