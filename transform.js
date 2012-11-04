@@ -64,7 +64,7 @@ function transformProgram(prog) {
   prog.body = [stackPush, wrap.CallExpression(bodyFunc)].map(wrap.ExpressionStatement)
   var decs = decContin.get()
   decs.declarations.unshift(wrap.VariableDeclarator(wrap.Identifier('__parentScope'), wrap.Identifier('__globalScope')))
-  addParentScope(bodyFunc.body.body)
+  if (bodyFunc.body) addParentScope(bodyFunc.body.body)
   prog.body.unshift(decs)
   return prog
 }
