@@ -40,18 +40,32 @@ function addParentScope(body) {
 
 function makeVarContin(parent) {
   var varDecs = []
+  var info = []
+  var propIndex = {}
   return { get: join
          , add: varDecs.push.bind(varDecs)
+         , index: info.push.bind(info)
   }
   function join(otherProps) {
-    return varDecToScope(wrap.VariableDeclaration(varDecs.reduce(function appendVar(acc, node) {
+    var props =  varDecToScope(wrap.VariableDeclaration(varDecs.reduce(function appendVar(acc, node) {
       return acc.concat(node.declarations)
     }, [])), otherProps)
+    info.forEach(function (identifier) {
+      if (propIndex[identifier.name]) propIndex[identifier.name].push(identifier)
+      else if (parent) parent.index(identifier)
+    })
+    return props
   }
   function varDecToScope(decs, otherProps) {
+    otherProps = otherProps || []
     var scopeDef = wrap.ObjectExpression(decs.declarations.map(function(dec) {
+      propIndex[dec.id.name] = []
+      // Possibly need to check for dups and make sure the second has no init it doesn't get added
       return wrap.Property(dec.id, dec.init == null ? wrap.Identifier('__undefined') : dec.init)
-    }).concat(otherProps || []))
+    }).concat(otherProps))
+    otherProps.forEach(function(prop) {
+      propIndex[prop.key.name] = []
+    })
     var scope = wrap.CallExpression(wrap.Identifier('__createScopeObject'), [scopeDef, wrap.Identifier('__parentScope')])
     return wrap.VariableDeclaration([wrap.VariableDeclarator(wrap.Identifier('__scope'), scope)])
   }
@@ -59,7 +73,7 @@ function makeVarContin(parent) {
 
 function transformProgram(prog) {
   var decContin = makeVarContin()
-  var bodyFunc = transformBlockStatement(prog, endingContin, decContin.add)
+  var bodyFunc = transformBlockStatement(prog, endingContin, decContin)
   var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [wrap.Identifier('__scope')])
   prog.body = [stackPush, wrap.CallExpression(bodyFunc)].map(wrap.ExpressionStatement)
   var decs = decContin.get()
@@ -81,7 +95,7 @@ function transformBlockStatement(block, contin, varContin) {
 function transformVariableDeclaration(varDec, contin, varContin) {
   // Pass varDecs to varContin
   // Transform in place Declarations with init into assignment statements
-  varContin(varDec)
+  varContin.add(varDec)
   return convertVarDec(0)
   function convertVarDec(i) {
     if (i === varDec.declarations.length) return contin()
@@ -176,8 +190,8 @@ function funcScopeProps(params) {
 }
 
 function transformFunctionHelper(func, contin, varContin) {
-  var decContin = makeVarContin()
-  var bodyFunc = dispatch(func.body, wrapReturn, decContin.add)
+  var decContin = makeVarContin(varContin)
+  var bodyFunc = dispatch(func.body, wrapReturn, decContin)
   var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [wrap.Identifier('__scope')]))
   addParentScope(bodyFunc.body.body)
   var runBody = wrap.ExpressionStatement(wrap.CallExpression(bodyFunc))
@@ -194,11 +208,12 @@ function transformFunctionExpression(func, contin, varContin) {
 function transformFunctionDeclaration(func, contin, varContin) {
   func.type = 'FunctionExpression'
   var bodyFunc = transformFunctionHelper(func, contin, varContin)
-  varContin(wrap.VariableDeclaration([wrap.VariableDeclarator(func.id, bodyFunc)]))
+  varContin.add(wrap.VariableDeclaration([wrap.VariableDeclarator(func.id, bodyFunc)]))
   return contin()
 }
 
 function transformIdentifier(id, contin, varContin) {
+  varContin.index(id)
   return wrap.MemberExpression(wrap.Identifier('__scope'), id)
 }
 
