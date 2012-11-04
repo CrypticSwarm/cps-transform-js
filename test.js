@@ -1,6 +1,9 @@
 var convert = require('./cpstransform')
 var esprima = require('esprima').parse
 var escodegen = require('escodegen').generate
+var showCode = process.argv.some(function (arg) {
+  if (arg === '--code') return true
+})
 
 function print(what) {
   process.stdout.write('\033[92m')
@@ -45,7 +48,9 @@ function run(str, expected) {
       cb(val)
     }, 0)
   }
-  eval(escodegen(convert(esprima(str, { loc: true, range: true }))))
+  var code = escodegen(convert(esprima(str, { loc: true, range: true })))
+  if (showCode) print(code)
+  else eval(code)
 }
 
 run('function plus(a,b) { return a + b; }\nplus(1+2, 3+4) + 5', 15)
