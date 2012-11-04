@@ -9,6 +9,7 @@ function print(what) {
   process.stdout.write('\033[92m')
   process.stdout.write(what)
   process.stdout.write('\033[39m')
+  process.stdout.write('\n\n')
 }
 
 
@@ -54,17 +55,11 @@ function run(str, expected) {
 }
 
 run('function plus(a,b) { return a + b; }\nplus(1+2, 3+4) + 5', 15)
-console.log('\n')
 run('function makeAdder(a){ return function plus(b) { return a + b } }\nvar add1 = makeAdder(1); var add2 = makeAdder(2); add1(5) + add2(6);', 14)
-console.log('\n')
 run('1 + 2 + 3 + 4+5+6* 3+4+5*4+5+6;', 68)
-console.log('\n')
 run('function plus(a,b) { return a+b; }\n plus(1, 2)+3;', 6)
-console.log('\n')
 run('var a=1,b=2,c=3,d=4,zzz=55,xxx=23; (function (a) { var x; return a + b + (c + d); var y, z = 4; })(zzz+xxx) + 2;', 89)
-console.log('\n')
 run('function plus(a,b) { return a + b; }\n(plus(1,2) + plus(3+4+5,6+7+8))', 36)
-console.log('\n')
 run('1 + 2 + 3 + 4; 3 + 2; 9 + 12; 123 + 123;', 246)
-console.log('\n')
-//run('factorial(5)\nfunction factorial(n) { return n === 0 ? 1 : n * factorial(n - 1) }', 120)
+run('if (x) x = 4; else x = 5; x+1', 6)
+run('factorial(5)\nfunction factorial(n) { var x; if (n === 0) x = 1; else x = n * factorial(n - 1); return x+0 }', 120)
