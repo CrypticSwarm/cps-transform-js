@@ -11,6 +11,33 @@ function endingContin() {
   return wrap.Identifier('__end')
 }
 
+function continuation(val, func) {
+  return wrap.FunctionExpression(wrap.BlockStatement([
+    wrap.ExpressionStatement(
+      wrap.CallExpression(
+        wrap.Identifier('__continuation'),
+        [val, func]))]))
+}
+
+var gensym = (function () {
+  var id = 0;
+  return function gensym() {
+    id++
+    return wrap.Identifier('__val' + id)
+  }
+})()
+
+function dotChain(arr) {
+  return arr.map(wrap.Identifier).reduce(wrap.MemberExpression)
+}
+
+function addParentScope(body) {
+  var parentScope = wrap.Identifier('__parentScope')
+  var scope = wrap.Identifier('__scope')
+  var parScope = wrap.VariableDeclaration([wrap.VariableDeclarator(parentScope, scope)])
+  body.unshift(parScope)
+}
+
 function makeVarContin(parent) {
   var varDecs = []
   return { get: join
@@ -71,14 +98,6 @@ function transformExpressionStatement(exp, contin, varContin) {
   return dispatch(exp.expression, contin, varContin)
 }
 
-var gensym = (function () {
-  var id = 0;
-  return function gensym() {
-    id++
-    return wrap.Identifier('__val' + id)
-  }
-})()
-
 function transformBinaryExpression(binExp, contin, varContin) {
   return convertLeft()
   function convertLeft() {
@@ -92,14 +111,6 @@ function transformBinaryExpression(binExp, contin, varContin) {
     exp.params = sym
     return exp
   }
-}
-
-function continuation(val, func) {
-  return wrap.FunctionExpression(wrap.BlockStatement([
-    wrap.ExpressionStatement(
-      wrap.CallExpression(
-        wrap.Identifier('__continuation'),
-        [val, func]))]))
 }
 
 function transformCallExpression(callExp, contin, varContin) {
@@ -153,10 +164,6 @@ function wrapReturn(val) {
   ), [val])
 }
 
-function dotChain(arr) {
-  return arr.map(wrap.Identifier).reduce(wrap.MemberExpression)
-}
-
 function funcScopeProps(params) {
   var arg = wrap.Identifier('arguments')
   var slice = dotChain(['Array', 'prototype', 'slice', 'call'])
@@ -166,13 +173,6 @@ function funcScopeProps(params) {
   props.push(wrap.Property(wrap.Identifier('this'), wrap.ThisExpression))
   props.push(wrap.Property(arg, wrap.CallExpression(slice, [arg])))
   return props
-}
-
-function addParentScope(body) {
-  var parentScope = wrap.Identifier('__parentScope')
-  var scope = wrap.Identifier('__scope')
-  var parScope = wrap.VariableDeclaration([wrap.VariableDeclarator(parentScope, scope)])
-  body.unshift(parScope)
 }
 
 function transformFunctionHelper(func, contin, varContin) {
