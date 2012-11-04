@@ -73,12 +73,14 @@ function makeVarContin(parent) {
 
 function transformProgram(prog) {
   var decContin = makeVarContin()
+  var parentScope = wrap.Identifier('__parentScope')
+  var scope = wrap.Identifier('__scope')
   var bodyFunc = transformBlockStatement(prog, endingContin, decContin)
-  var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [wrap.Identifier('__scope')])
+  var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [scope])
   prog.body = [stackPush, wrap.CallExpression(bodyFunc)].map(wrap.ExpressionStatement)
   var decs = decContin.get()
-  decs.declarations.unshift(wrap.VariableDeclarator(wrap.Identifier('__parentScope'), wrap.Identifier('__globalScope')))
-  if (bodyFunc.body) addParentScope(bodyFunc.body.body)
+  decs.declarations.unshift(wrap.VariableDeclarator(parentScope, wrap.Identifier('__globalScope')))
+  prog.body.unshift(wrap.ExpressionStatement(wrap.AssignmentExpression(parentScope, scope, '=')))
   prog.body.unshift(decs)
   return prog
 }
