@@ -20,7 +20,7 @@ function continuation(val, func) {
 }
 
 var gensym = (function () {
-  var id = 0;
+  var id = 0
   return function gensym() {
     id++
     return wrap.Identifier('__val' + id)
@@ -199,7 +199,7 @@ function transformFunctionDeclaration(func, contin, varContin) {
 }
 
 function transformIdentifier(id, contin, varContin) {
-  return wrap.MemberExpression(wrap.Identifier('__scope'), id);
+  return wrap.MemberExpression(wrap.Identifier('__scope'), id)
 }
 
 transform = { Identifier: transformIdentifier
