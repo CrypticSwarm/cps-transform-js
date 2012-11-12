@@ -187,7 +187,7 @@ function funcScopeProps(params) {
     return wrap.Property(param, param)
   })
   props.push(wrap.Property(wrap.Identifier('this'), wrap.ThisExpression))
-  props.push(wrap.Property(arg, wrap.CallExpression(slice, [arg])))
+  props.push(wrap.Property(arg, wrap.CallExpression(slice, [arg, wrap.Literal(0), wrap.UnaryExpression('-', wrap.Literal(1))])))
   return props
 }
 

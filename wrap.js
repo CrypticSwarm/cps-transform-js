@@ -48,6 +48,10 @@ function Literal(val) {
   return { type: 'Literal', value: val }
 }
 
+function UnaryExpression(op, val) {
+  return { type: 'UnaryExpression', operator: op, argument: val }
+}
+
 function MemberExpression(obj, val) {
   return { type: 'MemberExpression', object: obj, property: val, isComputed: false }
 }
@@ -73,6 +77,7 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , ReturnStatement: ReturnStatement
                  , EmptyStatement: { type: "EmptyStatement" }
                  , Literal: Literal
+                 , UnaryExpression: UnaryExpression
                  , MemberExpression: MemberExpression
                  , ObjectExpression: ObjectExpression
                  , Property: Property
