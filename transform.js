@@ -1,6 +1,13 @@
 var pred = require('./predicates')
 var wrap = require('./wrap')
 var crypto = require('crypto')
+
+var continId = wrap.Identifier('__continuation')
+var pscopeId = wrap.Identifier('__parentScope')
+var scopeId = wrap.Identifier('__scope')
+var returnId = wrap.Identifier('__return')
+var argId = wrap.Identifier('arguments')
+
 module.exports = function convert(node) {
   var transform
   var nodeList = {}
@@ -44,9 +51,7 @@ module.exports = function convert(node) {
   }
 
   function addParentScope(body) {
-    var parentScope = wrap.Identifier('__parentScope')
-    var scope = wrap.Identifier('__scope')
-    var parScope = wrap.VariableDeclaration([wrap.VariableDeclarator(parentScope, scope)])
+    var parScope = wrap.VariableDeclaration([wrap.VariableDeclarator(pscopeId, scopeId)])
     body.unshift(parScope)
   }
 
@@ -78,21 +83,19 @@ module.exports = function convert(node) {
       otherProps.forEach(function(prop) {
         propIndex[prop.key.name] = []
       })
-      var scope = wrap.CallExpression(wrap.Identifier('__createScopeObject'), [scopeDef, wrap.Identifier('__parentScope')])
-      return wrap.VariableDeclaration([wrap.VariableDeclarator(wrap.Identifier('__scope'), scope)])
+      var scope = wrap.CallExpression(wrap.Identifier('__createScopeObject'), [scopeDef, pscopeId])
+      return wrap.VariableDeclaration([wrap.VariableDeclarator(scopeId, scope)])
     }
   }
 
   function transformProgram(prog) {
     var decContin = makeVarContin()
-    var parentScope = wrap.Identifier('__parentScope')
-    var scope = wrap.Identifier('__scope')
     var bodyFunc = transformBlockStatement(prog, endingContin, decContin)
-    var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [scope])
+    var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId])
     prog.body = [stackPush, wrap.CallExpression(bodyFunc)].map(wrap.ExpressionStatement)
     var decs = decContin.get()
-    decs.declarations.unshift(wrap.VariableDeclarator(parentScope, wrap.Identifier('__globalScope')))
-    prog.body.unshift(wrap.ExpressionStatement(wrap.AssignmentExpression(parentScope, scope, '=')))
+    decs.declarations.unshift(wrap.VariableDeclarator(pscopeId, wrap.Identifier('__globalScope')))
+    prog.body.unshift(wrap.ExpressionStatement(wrap.AssignmentExpression(pscopeId, scopeId, '=')))
     prog.body.unshift(decs)
     return prog
   }
@@ -186,31 +189,30 @@ module.exports = function convert(node) {
 
   function wrapReturn(val) {
     var stackPop = wrap.CallExpression(dotChain(['__stack', 'pop']))
-    var retExp = wrap.CallExpression(wrap.Identifier('__return'), val == null ? null : [val])
+    var retExp = wrap.CallExpression(returnId, val == null ? null : [val])
     return wrap.FunctionExpression(wrap.BlockStatement(
       [stackPop, retExp].map(wrap.ExpressionStatement)
     ), [val])
   }
 
   function funcScopeProps(params) {
-    var arg = wrap.Identifier('arguments')
     var slice = dotChain(['Array', 'prototype', 'slice', 'call'])
     var props = params.map(function (param) {
       return wrap.Property(param, param)
     })
     props.push(wrap.Property(wrap.Identifier('this'), wrap.ThisExpression))
-    props.push(wrap.Property(arg, wrap.CallExpression(slice, [arg, wrap.Literal(0), wrap.UnaryExpression('-', wrap.Literal(1))])))
+    props.push(wrap.Property(argId, wrap.CallExpression(slice, [argId, wrap.Literal(0), wrap.UnaryExpression('-', wrap.Literal(1))])))
     return props
   }
 
   function transformFunctionHelper(func, contin, varContin) {
     var decContin = makeVarContin(varContin)
     var bodyFunc = dispatch(func.body, wrapReturn, decContin)
-    var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [wrap.Identifier('__scope')]))
+    var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId]))
     addParentScope(bodyFunc.body.body)
     var runBody = wrap.ExpressionStatement(wrap.CallExpression(bodyFunc))
     func.body.body = [ decContin.get(funcScopeProps(func.params)), stackPush, runBody ]
-    func.params = func.params.concat(wrap.Identifier('__return'))
+    func.params = func.params.concat(returnId)
     return func
   }
 
@@ -228,7 +230,7 @@ module.exports = function convert(node) {
 
   function transformIdentifier(id, contin, varContin) {
     varContin.index(id)
-    return wrap.MemberExpression(wrap.Identifier('__scope'), id)
+    return wrap.MemberExpression(scopeId, id)
   }
 
   function transformIfStatement(ifSt, contin, varContin) {
