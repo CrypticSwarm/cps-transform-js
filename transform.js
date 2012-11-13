@@ -1,21 +1,20 @@
 var pred = require('./predicates')
 var wrap = require('./wrap')
 var crypto = require('crypto')
-module.exports = function convert(node, contin, varContin) {
+module.exports = function convert(node) {
   var transform
   var nodeList = {}
   function collect(node, parentSha) {
     var hash = crypto.createHash('sha1')
-    h.update(node)
+    h.update(parentSha)
+    h.update(JSON.stringify(node))
     var sha = h.digest('hex')
     node.sha = sha
-    nodeList[sha]
+    nodeList[sha] = node
   }
 
-  
-
   function dispatch(node, contin, varContin) {
-    collect(node)
+    //collect(node)
     return transform[node.type] ? transform[node.type](node, contin, varContin)
         : continuation(node, contin())
   }
@@ -261,5 +260,6 @@ module.exports = function convert(node, contin, varContin) {
               , ReturnStatement: transformReturnStatement
               , IfStatement: transformIfStatement
               }
+  return dispatch(node)
 }
 
