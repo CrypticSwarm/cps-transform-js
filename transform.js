@@ -31,11 +31,11 @@ module.exports = function convert(node) {
   }
 
   function continuation(val, func) {
+    var args = [val]
+    if (func != null) args.push(func)
     return wrap.FunctionExpression(wrap.BlockStatement([
       wrap.ExpressionStatement(
-        wrap.CallExpression(
-          wrap.Identifier('__continuation'),
-          [val, func]))]))
+        wrap.CallExpression(continId, args))]))
   }
 
   var gensym = (function () {
@@ -92,7 +92,7 @@ module.exports = function convert(node) {
     var decContin = makeVarContin()
     var bodyFunc = transformBlockStatement(prog, endingContin, decContin)
     var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId])
-    prog.body = [stackPush, wrap.CallExpression(bodyFunc)].map(wrap.ExpressionStatement)
+    prog.body = [stackPush, wrap.CallExpression(continuation(bodyFunc))].map(wrap.ExpressionStatement)
     var decs = decContin.get()
     decs.declarations.unshift(wrap.VariableDeclarator(pscopeId, wrap.Identifier('__globalScope')))
     prog.body.unshift(wrap.ExpressionStatement(wrap.AssignmentExpression(pscopeId, scopeId, '=')))
@@ -210,7 +210,7 @@ module.exports = function convert(node) {
     var bodyFunc = dispatch(func.body, wrapReturn, decContin)
     var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId]))
     addParentScope(bodyFunc.body.body)
-    var runBody = wrap.ExpressionStatement(wrap.CallExpression(bodyFunc))
+    var runBody = wrap.ExpressionStatement(wrap.CallExpression(continuation(bodyFunc)))
     func.body.body = [ decContin.get(funcScopeProps(func.params)), stackPush, runBody ]
     func.params = func.params.concat(returnId)
     return func
