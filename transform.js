@@ -31,9 +31,10 @@ function cloneSha(node, clone) {
 module.exports = function convert(node) {
   var transform
   var nodeList = {}
-  function collect(node, parentSha) {
+  function collect(node, parentProp, parentSha) {
     if (node.phantom) return node.sha = parentSha
     var h = crypto.createHash('sha1')
+    if (parentProp) h.update(parentProp)
     if (parentSha) h.update(parentSha)
     h.update(JSON.stringify(node))
     var sha = h.digest('hex')
@@ -45,7 +46,7 @@ module.exports = function convert(node) {
   function dispatch(parent, prop, contin, varContin, parentSha) {
     var node = parent[prop]
     parentSha = parentSha || parent.sha
-    collect(node, parentSha)
+    collect(node, prop, parentSha)
     return transform[node.type] ? transform[node.type](node, contin, varContin)
         : continuation(node, contin())
   }
