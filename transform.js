@@ -179,9 +179,11 @@ module.exports = function convert(node) {
           : convertHelper(callExp.arguments, i, param, convertArg.bind(null, i+1), varContin, callExp.sha)
     }
     function finish(param) {
-      var exp = wrap.FunctionExpression(wrap.BlockStatement([wrap.ExpressionStatement(callExp)]))
+      var nextSym = gensym()
+      var varDec = wrap.VariableDeclaration([wrap.VariableDeclarator(nextSym, contin())])
+      var exp = wrap.FunctionExpression(wrap.BlockStatement([varDec, wrap.ExpressionStatement(callExp)]))
       exp.params = param
-      callExp.arguments.push(contin())
+      callExp.arguments.push(nextSym)
       return exp
     }
   }
