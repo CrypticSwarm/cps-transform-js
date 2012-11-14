@@ -44,15 +44,16 @@ module.exports = function convert(node) {
     parentSha = parentSha || parent.sha
     collect(node, parentSha)
     return transform[node.type] ? transform[node.type](node, contin, varContin)
-        : continuation(node.sha, node, contin())
+        : continuation(node, contin())
   }
 
   function endingContin() {
     return wrap.Identifier('__end')
   }
 
-  function continuation(/*sha,*/ val, func) {
-    var args = [/*sha,*/ val]
+  function continuation(val, func, sha) {
+    sha = sha || val.sha
+    var args = [wrap.Literal(sha), val]
     if (func != null) args.push(func)
     return wrap.FunctionExpression(wrap.BlockStatement([
       wrap.ExpressionStatement(
@@ -109,7 +110,7 @@ module.exports = function convert(node) {
     var decContin = makeVarContin(prog)
     var bodyFunc = transformBlockStatement(prog, endingContin, decContin)
     var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId])
-    prog = wrap.Program([stackPush, wrap.CallExpression(continuation(bodyFunc))].map(wrap.ExpressionStatement))
+    prog = wrap.Program([stackPush, wrap.CallExpression(continuation(bodyFunc, null, prog.sha))].map(wrap.ExpressionStatement))
     var decs = decContin.get()
     decs[0].declarations.unshift(wrap.VariableDeclarator(pscopeId, gscopeId))
     prog.body.unshift(wrap.ExpressionStatement(wrap.AssignmentExpression(pscopeId, scopeId, '=')))
@@ -231,7 +232,7 @@ module.exports = function convert(node) {
     var bodyFunc = dispatch(func, 'body', wrapReturn, decContin)
     var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId]))
     addParentScope(bodyFunc.body.body)
-    var runBody = wrap.ExpressionStatement(wrap.CallExpression(continuation(bodyFunc)))
+    var runBody = wrap.ExpressionStatement(wrap.CallExpression(continuation(bodyFunc, null, func.sha)))
     var decInfo = decContin.get(funcScopeProps(func.params))
     func.body = wrap.BlockStatement([decInfo[0], stackPush, runBody ])
     func.params = func.params.concat(returnId)
@@ -241,7 +242,7 @@ module.exports = function convert(node) {
   function transformFunctionExpression(func, contin, varContin) {
     func = cloneSha(func, wrap.FunctionExpression(func.body, func.params.slice(), func.id))
     var bodyFunc = transformFunctionHelper(func, contin, varContin)
-    return continuation(bodyFunc, contin())
+    return continuation(bodyFunc, contin(), func.sha)
   }
 
   function transformFunctionDeclaration(func, contin, varContin) {

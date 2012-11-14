@@ -38,8 +38,8 @@ function run(str, expected) {
     }
   }
 
-  function __continuation(val, cb) {
-    if (arguments.length === 1) cb = val,val=null;
+  function __continuation(sha, val, cb) {
+    if (arguments.length === 2) cb = val,val=null;
     setTimeout(function () {
       __i_tick++
       var curItem = __stack[__stack.length - 1]
@@ -49,7 +49,7 @@ function run(str, expected) {
       cb(val)
     }, 0)
   }
-  var codeInfo = convert(esprima(str, { loc: true, range: true }))
+  var codeInfo = convert(esprima(str, { loc: true }))
   var code = escodegen(codeInfo[0])
   if (showCode) print(code)
   else eval(code)
