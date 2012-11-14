@@ -18,6 +18,13 @@ var gensym = (function () {
     return wrap.Identifier('__val' + id)
   }
 })()
+
+function cloneSha(node, clone) {
+  clone.sha = node.sha
+  clone.parent = node.parent
+  return clone
+}
+
 module.exports = function convert(node) {
   var transform
   var nodeList = {}
@@ -31,18 +38,18 @@ module.exports = function convert(node) {
     nodeList[sha] = node
   }
 
-  function dispatch(node, contin, varContin) {
-    //collect(node)
+  function dispatch(node, contin, varContin, parentSha) {
+    //collect(node, parentSha)
     return transform[node.type] ? transform[node.type](node, contin, varContin)
-        : continuation(node, contin())
+        : continuation(node.sha, node, contin())
   }
 
   function endingContin() {
     return wrap.Identifier('__end')
   }
 
-  function continuation(val, func) {
-    var args = [val]
+  function continuation(/*sha,*/ val, func) {
+    var args = [/*sha,*/ val]
     if (func != null) args.push(func)
     return wrap.FunctionExpression(wrap.BlockStatement([
       wrap.ExpressionStatement(
@@ -133,6 +140,7 @@ module.exports = function convert(node) {
   }
 
   function transformBinaryExpression(binExp, contin, varContin) {
+    binExp = cloneSha(binExp, wrap.BinaryExpression(binExp.left, binExp.right, binExp.operator))
     return convertLeft()
     function convertLeft() {
       return convertHelper(binExp, 'left', [], convertRight, varContin)
@@ -148,6 +156,7 @@ module.exports = function convert(node) {
   }
 
   function transformCallExpression(callExp, contin, varContin) {
+    callExp = cloneSha(callExp, wrap.CallExpression(callExp.callee, callExp.arguments.slice()))
     return convertCallee()
     function convertCallee() {
       return convertHelper(callExp, 'callee', [], convertArg.bind(null, 0), varContin)
@@ -214,18 +223,19 @@ module.exports = function convert(node) {
     var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId]))
     addParentScope(bodyFunc.body.body)
     var runBody = wrap.ExpressionStatement(wrap.CallExpression(continuation(bodyFunc)))
-    func.body.body = [ decContin.get(funcScopeProps(func.params)), stackPush, runBody ]
+    func.body = wrap.BlockStatement([ decContin.get(funcScopeProps(func.params)), stackPush, runBody ])
     func.params = func.params.concat(returnId)
     return func
   }
 
   function transformFunctionExpression(func, contin, varContin) {
+    func = cloneSha(func, wrap.FunctionExpression(func.body, func.params.slice(), func.id))
     var bodyFunc = transformFunctionHelper(func, contin, varContin)
     return continuation(bodyFunc, contin())
   }
 
   function transformFunctionDeclaration(func, contin, varContin) {
-    func.type = 'FunctionExpression'
+    func = cloneSha(func, wrap.FunctionExpression(func.body, func.params.slice(), func.id))
     var bodyFunc = transformFunctionHelper(func, contin, varContin)
     varContin.add(wrap.VariableDeclaration([wrap.VariableDeclarator(func.id, bodyFunc)]))
     return contin()
@@ -239,6 +249,7 @@ module.exports = function convert(node) {
   function transformIfStatement(ifSt, contin, varContin) {
     var nextSym = gensym()
     var varDec = wrap.VariableDeclaration([wrap.VariableDeclarator(nextSym, contin())])
+    ifSt = cloneSha(ifSt, wrap.IfStatement(ifSt.test, ifSt.consequent, ifSt.alternate))
     return convertHelper(ifSt, 'test', [], convertIf, varContin)
     function getNextContin() {
       return wrap.FunctionExpression(wrap.BlockStatement([

@@ -12,8 +12,8 @@ function ExpressionStatement(ast) {
   return { type: 'ExpressionStatement', expression: ast }
 }
 
-function FunctionExpression(ast, params) {
-  return { type: 'FunctionExpression', id: null, params: params || [], body: ast }
+function FunctionExpression(ast, params, id) {
+  return { type: 'FunctionExpression', id: id || null, params: params || [], body: ast }
 }
 
 function CallExpression(ast, args) {
@@ -40,6 +40,10 @@ function AssignmentExpression(left, right, op) {
   return { type: 'AssignmentExpression', operator: op, left: left, right: right }
 }
 
+function BinaryExpression(left, right, op) {
+  return { type: 'BinaryExpression', left: left, right: right, operator: op }
+}
+
 function ReturnStatement(val) {
   return { type: 'ReturnStatement', argument: val }
 }
@@ -64,6 +68,10 @@ function Property(key, val) {
   return { type: 'Property', kind: 'init', key: key, value: val }
 }
 
+function IfStatement(test, consq, alt) {
+  return { type: 'IfStatement', test: test, consequent: consq, alternate: alt || null }
+}
+
 module.exports = { ExpressionStatement: ExpressionStatement
                  , Program: Program
                  , BlockStatement: BlockStatement
@@ -78,9 +86,11 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , EmptyStatement: { type: "EmptyStatement" }
                  , Literal: Literal
                  , UnaryExpression: UnaryExpression
+                 , BinaryExpression: BinaryExpression
                  , MemberExpression: MemberExpression
                  , ObjectExpression: ObjectExpression
                  , Property: Property
+                 , IfStatement: IfStatement
                  , ThisExpression: { type: "ThisExpression" }
                  }
 
