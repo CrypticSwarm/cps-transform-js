@@ -29,6 +29,7 @@ module.exports = function convert(node) {
   var transform
   var nodeList = {}
   function collect(node, parentSha) {
+    if (node.phantom) return node.sha = parentSha
     var h = crypto.createHash('sha1')
     if (parentSha) h.update(parentSha)
     h.update(JSON.stringify(node))
@@ -38,8 +39,10 @@ module.exports = function convert(node) {
     nodeList[sha] = node
   }
 
-  function dispatch(node, contin, varContin, parentSha) {
-    //collect(node, parentSha)
+  function dispatch(parent, prop, contin, varContin, parentSha) {
+    var node = parent[prop]
+    parentSha = parentSha || parent.sha
+    collect(node, parentSha)
     return transform[node.type] ? transform[node.type](node, contin, varContin)
         : continuation(node.sha, node, contin())
   }
@@ -99,6 +102,7 @@ module.exports = function convert(node) {
   }
 
   function transformProgram(prog) {
+    collect(prog)
     var decContin = makeVarContin()
     var bodyFunc = transformBlockStatement(prog, endingContin, decContin)
     var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId])
@@ -114,7 +118,7 @@ module.exports = function convert(node) {
     var body = block.body
     function convertStatement(i) {
       return i === body.length ? contin()
-          : dispatch(body[i], convertStatement.bind(null, i+1), varContin)
+          : dispatch(body, i, convertStatement.bind(null, i+1), varContin, block.sha)
     }
     return convertStatement(0)
   }
@@ -130,13 +134,14 @@ module.exports = function convert(node) {
       if (!dec.init) return convertVarDec(i+1)
       var assignExp = wrap.AssignmentExpression(dec.id, dec.init, '=')
       dec.init = null
-      return dispatch(assignExp, convertVarDec.bind(null, i+1), varContin)
+      assignExp.phantom = true
+      return dispatch({ phantom: assignExp, sha: varDec.sha }, 'phantom', convertVarDec.bind(null, i+1), varContin)
     }
   }
 
 
   function transformExpressionStatement(exp, contin, varContin) {
-    return dispatch(exp.expression, contin, varContin)
+    return dispatch(exp, 'expression', contin, varContin)
   }
 
   function transformBinaryExpression(binExp, contin, varContin) {
@@ -163,7 +168,7 @@ module.exports = function convert(node) {
     }
     function convertArg(i, param) {
       return i === callExp.arguments.length ? finish(param)
-          : convertHelper(callExp.arguments, i, param, convertArg.bind(null, i+1), varContin)
+          : convertHelper(callExp.arguments, i, param, convertArg.bind(null, i+1), varContin, callExp.sha)
     }
     function finish(param) {
       var exp = wrap.FunctionExpression(wrap.BlockStatement([wrap.ExpressionStatement(callExp)]))
@@ -173,16 +178,17 @@ module.exports = function convert(node) {
     }
   }
 
-  function convertHelper(subject, prop, defaultVal, contin, varContin) {
+  function convertHelper(subject, prop, defaultVal, contin, varContin, parentSha) {
+    parentSha = parentSha || subject.sha
     if (!pred.isSimple(subject[prop])) {
       var sym = gensym()
-      exp = dispatch(subject[prop], contin.bind(null, [sym]), varContin)
+      exp = dispatch(subject, prop, contin.bind(null, [sym]), varContin, parentSha)
       subject[prop] = sym
       exp.params = defaultVal
       return exp
     }
     else if (pred.isIdentifier(subject[prop])) {
-      subject[prop] = dispatch(subject[prop], contin.bind(null, defaultVal), varContin)
+      subject[prop] = dispatch(subject, prop, contin.bind(null, defaultVal), varContin, parentSha)
     }
     return contin(defaultVal)
   }
@@ -196,7 +202,7 @@ module.exports = function convert(node) {
     // because when you get to a return theres nothing after...
     contin()
     return retSt.argument == null ? wrapReturn(null)
-        : dispatch(retSt.argument, wrapReturn.bind(null, gensym()), varContin)
+        : dispatch(retSt, 'argument', wrapReturn.bind(null, gensym()), varContin)
   }
 
   function wrapReturn(val) {
@@ -219,7 +225,7 @@ module.exports = function convert(node) {
 
   function transformFunctionHelper(func, contin, varContin) {
     var decContin = makeVarContin(varContin)
-    var bodyFunc = dispatch(func.body, wrapReturn, decContin)
+    var bodyFunc = dispatch(func, 'body', wrapReturn, decContin)
     var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId]))
     addParentScope(bodyFunc.body.body)
     var runBody = wrap.ExpressionStatement(wrap.CallExpression(continuation(bodyFunc)))
@@ -256,8 +262,8 @@ module.exports = function convert(node) {
         wrap.ExpressionStatement(wrap.CallExpression(nextSym))]))
     }
     function convertIf(sym) {
-      ifSt.consequent = wrap.ExpressionStatement(wrap.CallExpression(dispatch(ifSt.consequent, getNextContin, varContin)))
-      if (ifSt.alternate) ifSt.alternate = wrap.ExpressionStatement(wrap.CallExpression(dispatch(ifSt.alternate, getNextContin, varContin)))
+      ifSt.consequent = wrap.ExpressionStatement(wrap.CallExpression(dispatch(ifSt, 'consequent', getNextContin, varContin)))
+      if (ifSt.alternate) ifSt.alternate = wrap.ExpressionStatement(wrap.CallExpression(dispatch(ifSt, 'alternate', getNextContin, varContin)))
       return wrap.FunctionExpression(wrap.BlockStatement([varDec, ifSt]), sym)
     }
   }
@@ -276,6 +282,7 @@ module.exports = function convert(node) {
               , ReturnStatement: transformReturnStatement
               , IfStatement: transformIfStatement
               }
-  return dispatch(node)
+
+  return transformProgram(node)
 }
 
