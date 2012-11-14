@@ -49,7 +49,8 @@ function run(str, expected) {
       cb(val)
     }, 0)
   }
-  var code = escodegen(convert(esprima(str, { loc: true, range: true })))
+  var codeInfo = convert(esprima(str, { loc: true, range: true }))
+  var code = escodegen(codeInfo[0])
   if (showCode) print(code)
   else eval(code)
 }

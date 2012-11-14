@@ -68,7 +68,7 @@ module.exports = function convert(node) {
     body.unshift(parScope)
   }
 
-  function makeVarContin(parent) {
+  function makeVarContin(scope, parent) {
     var varDecs = []
     var info = []
     var propIndex = {}
@@ -84,7 +84,10 @@ module.exports = function convert(node) {
         if (propIndex[identifier.name]) propIndex[identifier.name].push(identifier)
         else if (parent) parent.index(identifier)
       })
-      return props
+      collect(propIndex, scope.sha)
+      var createScopeCall = wrap.CallExpression(createScopeId, [props, pscopeId, wrap.Literal(propIndex.sha)])
+      var dec = wrap.VariableDeclaration([wrap.VariableDeclarator(scopeId, createScopeCall)])
+      return [dec, propIndex]
     }
     function varDecToScope(decs, otherProps) {
       otherProps = otherProps || []
@@ -96,21 +99,21 @@ module.exports = function convert(node) {
       otherProps.forEach(function(prop) {
         propIndex[prop.key.name] = []
       })
-      var scope = wrap.CallExpression(createScopeId, [scopeDef, pscopeId])
-      return wrap.VariableDeclaration([wrap.VariableDeclarator(scopeId, scope)])
+      return scopeDef
     }
   }
 
   function transformProgram(prog) {
     collect(prog)
-    var decContin = makeVarContin()
+    nodeList.toplevel = prog
+    var decContin = makeVarContin(prog)
     var bodyFunc = transformBlockStatement(prog, endingContin, decContin)
     var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId])
-    prog.body = [stackPush, wrap.CallExpression(continuation(bodyFunc))].map(wrap.ExpressionStatement)
+    prog = wrap.Program([stackPush, wrap.CallExpression(continuation(bodyFunc))].map(wrap.ExpressionStatement))
     var decs = decContin.get()
-    decs.declarations.unshift(wrap.VariableDeclarator(pscopeId, gscopeId))
+    decs[0].declarations.unshift(wrap.VariableDeclarator(pscopeId, gscopeId))
     prog.body.unshift(wrap.ExpressionStatement(wrap.AssignmentExpression(pscopeId, scopeId, '=')))
-    prog.body.unshift(decs)
+    prog.body.unshift(decs[0])
     return prog
   }
 
@@ -224,12 +227,13 @@ module.exports = function convert(node) {
   }
 
   function transformFunctionHelper(func, contin, varContin) {
-    var decContin = makeVarContin(varContin)
+    var decContin = makeVarContin(func, varContin)
     var bodyFunc = dispatch(func, 'body', wrapReturn, decContin)
     var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId]))
     addParentScope(bodyFunc.body.body)
     var runBody = wrap.ExpressionStatement(wrap.CallExpression(continuation(bodyFunc)))
-    func.body = wrap.BlockStatement([ decContin.get(funcScopeProps(func.params)), stackPush, runBody ])
+    var decInfo = decContin.get(funcScopeProps(func.params))
+    func.body = wrap.BlockStatement([decInfo[0], stackPush, runBody ])
     func.params = func.params.concat(returnId)
     return func
   }
@@ -283,6 +287,6 @@ module.exports = function convert(node) {
               , IfStatement: transformIfStatement
               }
 
-  return transformProgram(node)
+  return [transformProgram(node), nodeList]
 }
 
