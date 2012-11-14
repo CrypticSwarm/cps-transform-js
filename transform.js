@@ -4,19 +4,30 @@ var crypto = require('crypto')
 
 var continId = wrap.Identifier('__continuation')
 var pscopeId = wrap.Identifier('__parentScope')
+var gscopeId = wrap.Identifier('__globalScope')
+var createScopeId = wrap.Identifier('__createScopeObject')
+var undefinedId = wrap.Identifier('__undefined') 
 var scopeId = wrap.Identifier('__scope')
 var returnId = wrap.Identifier('__return')
 var argId = wrap.Identifier('arguments')
 
+var gensym = (function () {
+  var id = 0
+  return function gensym() {
+    id++
+    return wrap.Identifier('__val' + id)
+  }
+})()
 module.exports = function convert(node) {
   var transform
   var nodeList = {}
   function collect(node, parentSha) {
-    var hash = crypto.createHash('sha1')
-    h.update(parentSha)
+    var h = crypto.createHash('sha1')
+    if (parentSha) h.update(parentSha)
     h.update(JSON.stringify(node))
     var sha = h.digest('hex')
     node.sha = sha
+    node.parent = parentSha
     nodeList[sha] = node
   }
 
@@ -37,14 +48,6 @@ module.exports = function convert(node) {
       wrap.ExpressionStatement(
         wrap.CallExpression(continId, args))]))
   }
-
-  var gensym = (function () {
-    var id = 0
-    return function gensym() {
-      id++
-      return wrap.Identifier('__val' + id)
-    }
-  })()
 
   function dotChain(arr) {
     return arr.map(wrap.Identifier).reduce(wrap.MemberExpression)
@@ -78,12 +81,12 @@ module.exports = function convert(node) {
       var scopeDef = wrap.ObjectExpression(decs.declarations.map(function(dec) {
         propIndex[dec.id.name] = []
         // Possibly need to check for dups and make sure the second has no init it doesn't get added
-        return wrap.Property(dec.id, dec.init == null ? wrap.Identifier('__undefined') : dec.init)
+        return wrap.Property(dec.id, dec.init == null ? undefinedId : dec.init)
       }).concat(otherProps))
       otherProps.forEach(function(prop) {
         propIndex[prop.key.name] = []
       })
-      var scope = wrap.CallExpression(wrap.Identifier('__createScopeObject'), [scopeDef, pscopeId])
+      var scope = wrap.CallExpression(createScopeId, [scopeDef, pscopeId])
       return wrap.VariableDeclaration([wrap.VariableDeclarator(scopeId, scope)])
     }
   }
@@ -94,7 +97,7 @@ module.exports = function convert(node) {
     var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId])
     prog.body = [stackPush, wrap.CallExpression(continuation(bodyFunc))].map(wrap.ExpressionStatement)
     var decs = decContin.get()
-    decs.declarations.unshift(wrap.VariableDeclarator(pscopeId, wrap.Identifier('__globalScope')))
+    decs.declarations.unshift(wrap.VariableDeclarator(pscopeId, gscopeId))
     prog.body.unshift(wrap.ExpressionStatement(wrap.AssignmentExpression(pscopeId, scopeId, '=')))
     prog.body.unshift(decs)
     return prog
