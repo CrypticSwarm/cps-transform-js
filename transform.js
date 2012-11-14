@@ -236,6 +236,7 @@ module.exports = function convert(node) {
     var stackPush = wrap.ExpressionStatement(wrap.CallExpression(pushStackId, [stackId, scopeId]))
     addParentScope(bodyFunc.body.body)
     var runBody = wrap.ExpressionStatement(wrap.CallExpression(continuation(bodyFunc, null, func.sha)))
+    decContin.index.apply(decContin, func.params)
     var decInfo = decContin.get(funcScopeProps(func.params))
     func.body = wrap.BlockStatement([decInfo[0], stackPush, runBody ])
     func.params = func.params.concat(returnId)
@@ -249,6 +250,7 @@ module.exports = function convert(node) {
   }
 
   function transformFunctionDeclaration(func, contin, varContin) {
+    varContin.index(func.id)
     func = cloneSha(func, wrap.FunctionExpression(func.body, func.params.slice(), func.id))
     var bodyFunc = transformFunctionHelper(func, contin, varContin)
     varContin.add(wrap.VariableDeclaration([wrap.VariableDeclarator(func.id, bodyFunc)]))
