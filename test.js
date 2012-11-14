@@ -29,6 +29,13 @@ function run(str, expected) {
   var __stack = []
   var runNum = ++runCounter
 
+  function __pushStack(stack, scope) {
+    stack.push(scope)
+  }
+  function __popStack(stack) {
+    stack.pop()
+  }
+
   function __end(val) {
     if (val === expected) {
       console.log('\033[0;32mRun number (' + runNum + ')\033[m')

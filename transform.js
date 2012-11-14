@@ -5,9 +5,12 @@ var crypto = require('crypto')
 var continId = wrap.Identifier('__continuation')
 var pscopeId = wrap.Identifier('__parentScope')
 var gscopeId = wrap.Identifier('__globalScope')
-var createScopeId = wrap.Identifier('__createScopeObject')
-var undefinedId = wrap.Identifier('__undefined') 
 var scopeId = wrap.Identifier('__scope')
+var createScopeId = wrap.Identifier('__createScopeObject')
+var stackId = wrap.Identifier('__stack')
+var pushStackId = wrap.Identifier('__pushStack')
+var popStackId = wrap.Identifier('__popStack')
+var undefinedId = wrap.Identifier('__undefined') 
 var returnId = wrap.Identifier('__return')
 var argId = wrap.Identifier('arguments')
 
@@ -109,7 +112,7 @@ module.exports = function convert(node) {
     nodeList.toplevel = prog
     var decContin = makeVarContin(prog)
     var bodyFunc = transformBlockStatement(prog, endingContin, decContin)
-    var stackPush = wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId])
+    var stackPush = wrap.CallExpression(pushStackId, [stackId, scopeId])
     prog = wrap.Program([stackPush, wrap.CallExpression(continuation(bodyFunc, null, prog.sha))].map(wrap.ExpressionStatement))
     var decs = decContin.get()
     decs[0].declarations.unshift(wrap.VariableDeclarator(pscopeId, gscopeId))
@@ -210,7 +213,7 @@ module.exports = function convert(node) {
   }
 
   function wrapReturn(val) {
-    var stackPop = wrap.CallExpression(dotChain(['__stack', 'pop']))
+    var stackPop = wrap.CallExpression(popStackId, [stackId])
     var retExp = wrap.CallExpression(returnId, val == null ? null : [val])
     return wrap.FunctionExpression(wrap.BlockStatement(
       [stackPop, retExp].map(wrap.ExpressionStatement)
@@ -230,7 +233,7 @@ module.exports = function convert(node) {
   function transformFunctionHelper(func, contin, varContin) {
     var decContin = makeVarContin(func, varContin)
     var bodyFunc = dispatch(func, 'body', wrapReturn, decContin)
-    var stackPush = wrap.ExpressionStatement(wrap.CallExpression(dotChain(['__stack', 'push']), [scopeId]))
+    var stackPush = wrap.ExpressionStatement(wrap.CallExpression(pushStackId, [stackId, scopeId]))
     addParentScope(bodyFunc.body.body)
     var runBody = wrap.ExpressionStatement(wrap.CallExpression(continuation(bodyFunc, null, func.sha)))
     var decInfo = decContin.get(funcScopeProps(func.params))
