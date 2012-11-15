@@ -72,6 +72,10 @@ function IfStatement(test, consq, alt) {
   return { type: 'IfStatement', test: test, consequent: consq, alternate: alt || null }
 }
 
+function UpdateExpression(op, arg, pre) {
+  return { type: 'UpdateExpression', operator: op, argument: arg, prefix: pre || false }
+}
+
 module.exports = { ExpressionStatement: ExpressionStatement
                  , Program: Program
                  , BlockStatement: BlockStatement
@@ -91,6 +95,7 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , ObjectExpression: ObjectExpression
                  , Property: Property
                  , IfStatement: IfStatement
+                 , UpdateExpression: UpdateExpression
                  , ThisExpression: { type: "ThisExpression" }
                  }
 

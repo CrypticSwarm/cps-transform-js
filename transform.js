@@ -290,6 +290,16 @@ module.exports = function convert(node) {
     }
   }
 
+  function transformUpdateExpression(upExp, contin, varContin) {
+    upExp = cloneSha(upExp, wrap.UpdateExpression(upExp.operator, upExp.argument, upExp.prefix))
+    return convertHelper(upExp, 'argument', [], finish, varContin)
+    function finish(sym) {
+      var exp = continuation(upExp, contin())
+      exp.params = sym
+      return exp
+    }
+  }
+
   transform = { Identifier: transformIdentifier
               , Program: transformProgram
               , BlockStatement: transformBlockStatement
@@ -303,6 +313,7 @@ module.exports = function convert(node) {
               , AssignmentExpression: transformBinaryExpression
               , ReturnStatement: transformReturnStatement
               , IfStatement: transformIfStatement
+              , UpdateExpression: transformUpdateExpression
               }
 
   return [transformProgram(node), nodeList]
