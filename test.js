@@ -57,6 +57,7 @@ function run(str, expected) {
     }, 0)
   }
   var codeInfo = convert(esprima(str, { loc: true }))
+  //console.log(JSON.stringify(codeInfo, null, 2))
   var code = escodegen(codeInfo[0])
   if (showCode) print(code)
   else eval(code)
@@ -72,3 +73,4 @@ run('1 + 2 + 3 + 4; 3 + 2; 9 + 12; 123 + 123;', 246)
 run('if (x) x = 4; else x = 5; x+1', 6)
 run('factorial(5)\nfunction factorial(n) { var x; if (n === 0) x = 1; else x = n * factorial(n - 1); return x+0 }', 120)
 run('var x = 10\nx++\nx++', 11)
+run('var x = 0;\nfor(var i = 0; i < 5; i++) { x+=i }\nx + 0', 10)

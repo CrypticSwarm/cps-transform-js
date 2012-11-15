@@ -300,6 +300,42 @@ module.exports = function convert(node) {
     }
   }
 
+  function transformForStatement(forSt, contin, varContin) {
+    forSt = cloneSha(forSt, wrap.ForStatement(forSt.init, forSt.test, forSt.update, forSt.body))
+    var nextSym = gensym()
+    var bodySym = gensym()
+    var testSym = gensym()
+    var updateSym = gensym()
+    return convertInit()
+    function convertInit() {
+      return convertHelper(forSt, 'init', [], convertFor, varContin)
+    }
+    function convertFor(sym) {
+      var varDec = wrap.VariableDeclaration(
+        [ wrap.VariableDeclarator(testSym
+          , convertHelper(forSt, 'test', sym, getIfSt, varContin))
+        , wrap.VariableDeclarator(bodySym
+          , dispatch(forSt, 'body', callSym.bind(null, updateSym), varContin))
+        , wrap.VariableDeclarator(updateSym
+          , dispatch(forSt, 'update', callSym.bind(null, testSym), varContin))
+        ,  wrap.VariableDeclarator(nextSym, contin())
+      ])
+      return wrap.FunctionExpression(wrap.BlockStatement(
+        [ varDec
+        , wrap.ExpressionStatement(wrap.CallExpression(callSym(testSym)))] ), sym)
+    }
+    function getIfSt(sym) {
+      var ifSt = wrap.IfStatement(sym[0]
+          , wrap.ExpressionStatement(wrap.CallExpression(callSym(bodySym)))
+          , wrap.ExpressionStatement(wrap.CallExpression(callSym(nextSym))))
+      return wrap.FunctionExpression(wrap.BlockStatement([ifSt]), sym)
+    }
+    function callSym(sym) {
+      return wrap.FunctionExpression(wrap.BlockStatement([
+        wrap.ExpressionStatement(wrap.CallExpression(sym))]), sym)
+    }
+  }
+
   transform = { Identifier: transformIdentifier
               , Program: transformProgram
               , BlockStatement: transformBlockStatement
@@ -314,6 +350,7 @@ module.exports = function convert(node) {
               , ReturnStatement: transformReturnStatement
               , IfStatement: transformIfStatement
               , UpdateExpression: transformUpdateExpression
+              , ForStatement: transformForStatement
               }
 
   return [transformProgram(node), nodeList]

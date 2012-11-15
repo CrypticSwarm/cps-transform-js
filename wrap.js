@@ -76,6 +76,10 @@ function UpdateExpression(op, arg, pre) {
   return { type: 'UpdateExpression', operator: op, argument: arg, prefix: pre || false }
 }
 
+function ForStatement(init, test, update, body) {
+  return { type: 'ForStatement', init: init, test: test, update: update, body: body }
+}
+
 module.exports = { ExpressionStatement: ExpressionStatement
                  , Program: Program
                  , BlockStatement: BlockStatement
@@ -96,6 +100,7 @@ module.exports = { ExpressionStatement: ExpressionStatement
                  , Property: Property
                  , IfStatement: IfStatement
                  , UpdateExpression: UpdateExpression
+                 , ForStatement: ForStatement
                  , ThisExpression: { type: "ThisExpression" }
                  }
 
