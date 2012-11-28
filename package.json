@@ -5,6 +5,7 @@
 , "private": true
 , "repository": { "type": "git" }
 , "main": ""
+, "scripts": { "test": "node test.js" }
 , "dependencies": 
   { "esprima": "0.9.9"
   , "escodegen": "0.0.9"
