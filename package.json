@@ -1,4 +1,4 @@
-{ "name": "scope-visualizer"
+{ "name": "cpsjs"
 , "description": "A program to help people learn JS by visualizing the scope chain"
 , "version": "0.1.1"
 , "authors": [ "Perrin Westrich <crypticswarm@gmail.com>" ]
