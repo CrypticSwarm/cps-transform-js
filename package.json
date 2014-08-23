@@ -4,7 +4,7 @@
 , "authors": [ "Perrin Westrich <crypticswarm@gmail.com>" ]
 , "private": true
 , "repository": { "type": "git" }
-, "main": ""
+, "main": "cpstransform"
 , "scripts": { "test": "node test.js" }
 , "dependencies": 
   { "esprima": "0.9.9"
