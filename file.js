@@ -1,4 +1,4 @@
-var convert = require('./cpstransform')
+var convert = require('./transform')
 var esprima = require('esprima').parse
 var escodegen = require('escodegen').generate
 
