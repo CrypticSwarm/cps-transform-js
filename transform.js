@@ -33,7 +33,10 @@ module.exports = function convert(node) {
   var transform
   var nodeList = {}
   function collect(node, parentProp, parentSha) {
-    if (node.phantom) return node.sha = parentSha
+    if (node.phantom) {
+      node.sha = parentSha
+      return parentSha
+    }
     var h = crypto.createHash('sha1')
     if (parentProp != null) h.update('' + parentProp)
     if (parentSha) h.update(parentSha)
